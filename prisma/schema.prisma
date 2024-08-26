@@ -1,0 +1,40 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Post {
+  id          Int      @id @default(autoincrement())
+  titulo      String
+  conteudo    String
+  created_at  DateTime @default(now())
+}
+
+model Event {
+  id          Int      @id @default(autoincrement()) //Eventos marcados no calendario
+  date        DateTime
+  descricao   String
+}
+
+model File {
+  id           Int      @id @default(autoincrement())
+  filename     String
+  originalname String
+  mimetype     String
+  path         String
+}
+
+model Subscription {
+  id             Int      @id @default(autoincrement())
+  endpoint       String
+  p256dh         String
+  auth           String
+  createdAt      DateTime @default(now())
+  expirationTime DateTime? // Campo opcional
+  keys           String
+}
+
