@@ -32,3 +32,16 @@ CREATE TABLE "Subscription" (
     "expirationTime" DATETIME,
     "keys" TEXT NOT NULL
 );
+
+-- CreateTable
+CREATE TABLE "User" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "usuario" TEXT NOT NULL,
+    "password" TEXT NOT NULL,
+    "tipoUsuario" TEXT NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_usuario_key" ON "User"("usuario");

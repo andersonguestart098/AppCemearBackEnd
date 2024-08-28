@@ -38,3 +38,13 @@ model Subscription {
   keys           String
 }
 
+model User {
+  id          Int      @id @default(autoincrement())
+  usuario     String   @unique
+  password    String
+  tipoUsuario String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+

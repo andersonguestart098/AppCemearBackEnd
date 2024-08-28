@@ -7,7 +7,10 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import notifier from "node-notifier";
-import { sendNotification } from "./notification"; // Importa a função de envio de notificação
+import { sendNotification } from "./notification";
+import authRoutes from "./routes/auth"; // Apenas uma importação para rotas de autenticação
+import auth from "./middleware/auth"; // Middleware de autenticação
+import { Request, Response, RequestHandler } from "express";
 
 const app = express();
 app.use(express.json());
@@ -133,23 +136,21 @@ app.post("/posts", async (req, res) => {
 
   // Envia a notificação para o sistema operacional
   notifier.notify({
-    title: "Novo Post Criado",
-    message: `Um novo post foi criado com o título: ${titulo}`,
+    title: "Novo Post",
+    message: `Novo post: ${titulo}`,
     sound: true,
     wait: true,
   });
 
   // Obtenha a assinatura do banco de dados
-  // Obtenha a assinatura do banco de dados
-  const subscription = await prisma.subscription.findFirst(); // Obtenha a assinatura correta
+  const subscription = await prisma.subscription.findFirst();
   const payload = JSON.stringify({
     title: titulo,
-    body: "Este é um teste de notificação push",
-    icon: "/path/to/icon.png",
+    body: "Novo Post!",
+    icon: "public/icones/logoCE.ico",
   });
 
   if (subscription) {
-    // Certifique-se de que subscription tem o formato correto
     const subscriptionObject = {
       endpoint: subscription.endpoint,
       keys: {
@@ -172,7 +173,6 @@ app.post("/posts", async (req, res) => {
 });
 
 app.post("/sendNotification", async (req, res) => {
-  // Obtenha a assinatura do banco de dados
   const subscription = await prisma.subscription.findFirst();
 
   if (!subscription) {
@@ -212,10 +212,10 @@ app.post("/subscribe", async (req, res) => {
     const savedSubscription = await prisma.subscription.create({
       data: {
         endpoint: endpoint,
-        p256dh: keys.p256dh, // Chave pública
-        auth: keys.auth, // Chave de autenticação
-        expirationTime: expirationTime ? new Date(expirationTime) : null, // Opcional
-        keys: JSON.stringify(keys), // Converte as chaves para JSON string
+        p256dh: keys.p256dh,
+        auth: keys.auth,
+        expirationTime: expirationTime ? new Date(expirationTime) : null,
+        keys: JSON.stringify(keys),
       },
     });
 
@@ -254,7 +254,6 @@ app.get("/events", async (req, res) => {
 
 app.post("/events", async (req, res) => {
   const { date, descricao } = req.body;
-
   try {
     const newEvent = await prisma.event.create({
       data: {
@@ -262,20 +261,46 @@ app.post("/events", async (req, res) => {
         descricao,
       },
     });
-    res.status(201).json({ id: newEvent.id });
+    res.status(201).json(newEvent);
   } catch (error) {
     console.error("Erro ao criar evento:", error);
     res.status(500).send("Erro ao criar evento");
   }
 });
 
-io.on("connection", (socket) => {
-  console.log("A user connected");
-  socket.on("disconnect", () => {
-    console.log("User disconnected");
-  });
+// Configurar rotas de autenticação
+app.use("/auth", authRoutes);
+
+// Adicionar rota protegida para teste
+app.get("/protected", auth, (req, res) => {
+  res.send("Você está acessando uma rota protegida!");
 });
 
+app.get("/userTipoUsuario", auth, async (req: Request, res: Response) => {
+  const userId = req.user?.id;
+
+  if (!userId) {
+    return res.status(401).json({ error: "Usuário não autenticado" });
+  }
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { tipoUsuario: true },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "Usuário não encontrado" });
+    }
+
+    res.json({ tipoUsuario: user.tipoUsuario });
+  } catch (error) {
+    console.error("Erro ao obter tipo de usuário:", error);
+    res.status(500).json({ error: "Erro ao obter tipo de usuário" });
+  }
+});
+
+// Iniciar o servidor
 server.listen(3001, () => {
-  console.log("Server running on port 3001");
+  console.log("Servidor iniciado na porta 3001");
 });
