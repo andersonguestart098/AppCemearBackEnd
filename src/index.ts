@@ -10,7 +10,7 @@ import notifier from "node-notifier";
 import { sendNotification } from "./notification";
 import authRoutes from "./routes/auth"; // Apenas uma importação para rotas de autenticação
 import auth from "./middleware/auth"; // Middleware de autenticação
-import { Request, Response, RequestHandler } from "express";
+import { Request, Response } from "express";
 
 const app = express();
 app.use(express.json());
@@ -166,7 +166,7 @@ app.post("/posts", async (req, res) => {
       console.error("Erro ao enviar notificação push", error);
     }
   } else {
-    console.error("Nenhuma assinatura encontrada no banco de dados.");
+    console.error("nenhuma assinatura encontrada no banco de dados.");
   }
 
   res.status(201).json(post);
@@ -293,14 +293,15 @@ app.get("/userTipoUsuario", auth, async (req: Request, res: Response) => {
       return res.status(404).json({ error: "Usuário não encontrado" });
     }
 
-    res.json({ tipoUsuario: user.tipoUsuario });
+    res.json({ tipo_usuario: user.tipoUsuario });
   } catch (error) {
     console.error("Erro ao obter tipo de usuário:", error);
     res.status(500).json({ error: "Erro ao obter tipo de usuário" });
   }
 });
 
-// Iniciar o servidor
-server.listen(3001, () => {
-  console.log("Servidor iniciado na porta 3001");
+// Configure o servidor para escutar na porta fornecida pelo Heroku ou na porta padrão
+const port = process.env.PORT || 3001;
+server.listen(port, () => {
+  console.log(`Servidor escutando na porta ${port}`);
 });
