@@ -1,5 +1,5 @@
 datasource db {
-  provider = "sqlite"
+  provider = "mongodb"
   url      = env("DATABASE_URL")
 }
 
@@ -7,44 +7,43 @@ generator client {
   provider = "prisma-client-js"
 }
 
+
 model Post {
-  id          Int      @id @default(autoincrement())
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
   titulo      String
   conteudo    String
   created_at  DateTime @default(now())
 }
 
 model Event {
-  id          Int      @id @default(autoincrement()) //Eventos marcados no calendario
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
   date        DateTime
   descricao   String
 }
 
 model File {
-  id           Int      @id @default(autoincrement())
-  filename     String
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  filename    String
   originalname String
   mimetype     String
   path         String
 }
 
 model Subscription {
-  id             Int      @id @default(autoincrement())
-  endpoint       String
-  p256dh         String
-  auth           String
-  createdAt      DateTime @default(now())
-  expirationTime DateTime? // Campo opcional
-  keys           String
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  endpoint    String
+  p256dh      String
+  auth        String
+  createdAt   DateTime @default(now())
+  expirationTime DateTime?
+  keys        String
 }
 
 model User {
-  id          Int      @id @default(autoincrement())
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
   usuario     String   @unique
   password    String
   tipoUsuario String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
-
-

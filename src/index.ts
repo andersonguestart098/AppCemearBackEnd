@@ -107,7 +107,7 @@ app.post("/upload", upload.single("file"), async (req, res) => {
 app.get("/download/:id", async (req, res) => {
   try {
     const file = await prisma.file.findUnique({
-      where: { id: parseInt(req.params.id) },
+      where: { id: req.params.id }, // Não precisa converter para int
     });
 
     if (!file) return res.status(404).send("Arquivo não encontrado");

@@ -9,7 +9,7 @@ const prisma = new PrismaClient();
 
 interface JwtPayload {
   user: {
-    id: number;
+    id: string;
     tipoUsuario: string; // Adicionando tipoUsuario ao payload
   };
 }

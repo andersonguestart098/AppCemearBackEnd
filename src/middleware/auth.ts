@@ -2,17 +2,26 @@ import { User } from "@prisma/client";
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 
+// Declaração global para adicionar a propriedade `user` ao tipo Request
 declare global {
   namespace Express {
     interface Request {
-      user?: User; // Defina a propriedade `user` no tipo Request
+      user?: {
+        id: string; // Altere para string para MongoDB
+        usuario: string;
+        password: string;
+        tipoUsuario: string;
+        createdAt: Date;
+        updatedAt: Date;
+      };
     }
   }
 }
 
+// Ajuste da interface JwtPayload
 interface JwtPayload {
   user: {
-    id: number;
+    id: string; // Altere para string para MongoDB
     usuario: string;
     password: string;
     tipoUsuario: string;
@@ -21,8 +30,16 @@ interface JwtPayload {
   };
 }
 
+// Atualização da interface AuthRequest
 interface AuthRequest extends Request {
-  user?: JwtPayload["user"];
+  user?: {
+    id: string; // Altere para string para MongoDB
+    usuario: string;
+    password: string;
+    tipoUsuario: string;
+    createdAt: Date;
+    updatedAt: Date;
+  };
 }
 
 const auth = (req: AuthRequest, res: Response, next: NextFunction) => {
