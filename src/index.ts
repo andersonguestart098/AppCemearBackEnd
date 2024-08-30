@@ -18,11 +18,28 @@ app.use(cors());
 
 const prisma = new PrismaClient();
 const server = http.createServer(app);
+
 const io = new Server(server, {
   cors: {
     origin: "https://cemear-844a30ef7d3e.herokuapp.com",
     methods: ["GET", "POST"],
   },
+});
+
+io.on("connection", (socket) => {
+  console.log("a user connected");
+
+  // Adicione lógica de eventos para o socket
+  socket.on("message", (data) => {
+    console.log("Message received:", data);
+  });
+
+  socket.emit("welcome", "Welcome to the server!");
+
+  // Exemplo: Gerenciar desconexão
+  socket.on("disconnect", () => {
+    console.log("user disconnected");
+  });
 });
 
 // Configuração do multer
@@ -230,82 +247,8 @@ app.post("/subscribe", async (req, res) => {
   }
 });
 
-// Endpoint para obter assinaturas (para fins de administração ou teste)
-app.get("/subscriptions", async (req, res) => {
-  try {
-    const subscriptions = await prisma.subscription.findMany();
-    res.json(subscriptions);
-  } catch (error) {
-    console.error("Erro ao obter assinaturas:", error);
-    res.status(500).send("Erro ao obter assinaturas");
-  }
-});
-
-app.get("/events", async (req, res) => {
-  try {
-    const events = await prisma.event.findMany();
-    const formattedEvents = events.map((event) => ({
-      ...event,
-      date: event.date.toISOString().split("T")[0],
-    }));
-
-    res.json(formattedEvents);
-  } catch (error) {
-    console.error("Erro ao buscar eventos:", error);
-    res.status(500).send("Erro ao buscar eventos");
-  }
-});
-
-app.post("/events", async (req, res) => {
-  const { date, descricao } = req.body;
-  try {
-    const newEvent = await prisma.event.create({
-      data: {
-        date: new Date(date),
-        descricao,
-      },
-    });
-    res.status(201).json(newEvent);
-  } catch (error) {
-    console.error("Erro ao criar evento:", error);
-    res.status(500).send("Erro ao criar evento");
-  }
-});
-
-// Configurar rotas de autenticação
 app.use("/auth", authRoutes);
 
-// Adicionar rota protegida para teste
-app.get("/protected", auth, (req, res) => {
-  res.send("Você está acessando uma rota protegida!");
-});
-
-app.get("/userTipoUsuario", auth, async (req: Request, res: Response) => {
-  const userId = req.user?.id;
-
-  if (!userId) {
-    return res.status(401).json({ error: "Usuário não autenticado" });
-  }
-
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { tipoUsuario: true },
-    });
-
-    if (!user) {
-      return res.status(404).json({ error: "Usuário não encontrado" });
-    }
-
-    res.json({ tipo_usuario: user.tipoUsuario });
-  } catch (error) {
-    console.error("Erro ao obter tipo de usuário:", error);
-    res.status(500).json({ error: "Erro ao obter tipo de usuário" });
-  }
-});
-
-// Configure o servidor para escutar na porta fornecida pelo Heroku ou na porta padrão
-const PORT = process.env.PORT || 17143;
-app.listen(PORT, () => {
-  console.log(`Servidor iniciado na porta ${PORT}`);
+server.listen(process.env.PORT || 17143, () => {
+  console.log(`Servidor rodando na porta ${process.env.PORT || 4000}`);
 });
