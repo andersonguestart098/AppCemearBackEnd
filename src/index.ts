@@ -46,6 +46,10 @@ const upload = multer({
   },
 });
 
+app.get("/", (req: Request, res: Response) => {
+  res.send("Bem-vindo ao servidor!");
+});
+
 const uploadsDir = path.join(__dirname, "../uploads");
 
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
@@ -301,7 +305,7 @@ app.get("/userTipoUsuario", auth, async (req: Request, res: Response) => {
 });
 
 // Configure o servidor para escutar na porta fornecida pelo Heroku ou na porta padrão
-const port = process.env.PORT || 3001;
-server.listen(port, () => {
-  console.log(`Servidor escutando na porta ${port}`);
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => {
+  console.log(`Servidor iniciado na porta ${PORT}`);
 });
