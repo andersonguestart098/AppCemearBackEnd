@@ -41,7 +41,7 @@ const io = new SocketIOServer(server, {
 app.use(express.static(path.join(__dirname, "public")));
 
 app.get("/", (req, res) => {
-  res.write(`Soket IO start on Port : ${PORT}`);
+  res.write(`Soket IO iniciou na porta: ${PORT}`);
   res.end();
 });
 
