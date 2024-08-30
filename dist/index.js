@@ -26,14 +26,35 @@ const auth_1 = __importDefault(require("./routes/auth")); // Apenas uma importa�
 const auth_2 = __importDefault(require("./middleware/auth")); // Middleware de autenticação
 const app = (0, express_1.default)();
 app.use(express_1.default.json());
-app.use((0, cors_1.default)());
+const corsOptions = {
+    origin: [
+        "http://localhost:3000",
+        "https://cemear-844a30ef7d3e.herokuapp.com",
+    ],
+    methods: ["GET", "POST"],
+};
+app.use((0, cors_1.default)(corsOptions));
 const prisma = new client_1.PrismaClient();
 const server = http_1.default.createServer(app);
 const io = new socket_io_1.Server(server, {
     cors: {
-        origin: "http://localhost:3000",
+        origin: [
+            "http://localhost:3000",
+            "https://cemear-844a30ef7d3e.herokuapp.com",
+        ],
         methods: ["GET", "POST"],
     },
+});
+app.use(express_1.default.static(path_1.default.join(__dirname, "public")));
+app.get("/", (req, res) => {
+    res.write(`Soket IO start on Port : ${PORT}`);
+    res.end();
+});
+io.on("connection", (socket) => {
+    console.log("user connected");
+    socket.on("message", (ms) => {
+        io.emit("message", ms);
+    });
 });
 // Configuração do multer
 const storage = multer_1.default.diskStorage({
@@ -53,8 +74,8 @@ const upload = (0, multer_1.default)({
             cb(new Error("Apenas arquivos JPEG, PNG e PDF são permitidos"));
     },
 });
-app.get("/", (req, res) => {
-    res.send("Bem-vindo ao servidor!");
+app.get("/socket-test", (req, res) => {
+    res.sendFile(path_1.default.join(__dirname, "public", "socket-test.html"));
 });
 const uploadsDir = path_1.default.join(__dirname, "../uploads");
 app.use("/uploads", express_1.default.static(path_1.default.join(__dirname, "../uploads")));
@@ -281,7 +302,7 @@ app.get("/userTipoUsuario", auth_2.default, (req, res) => __awaiter(void 0, void
     }
 }));
 // Configure o servidor para escutar na porta fornecida pelo Heroku ou na porta padrão
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 17143;
 app.listen(PORT, () => {
     console.log(`Servidor iniciado na porta ${PORT}`);
 });
