@@ -11,6 +11,7 @@ import { sendNotification } from "./notification";
 import authRoutes from "./routes/auth"; // Apenas uma importação para rotas de autenticação
 import auth from "./middleware/auth"; // Middleware de autenticação
 import { Request, Response } from "express";
+import { Socket } from "dgram";
 
 const app = express();
 app.use(express.json());
@@ -40,19 +41,14 @@ const io = new SocketIOServer(server, {
 app.use(express.static(path.join(__dirname, "public")));
 
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+  res.write(`Soket IO start on Port : ${PORT}`);
+  res.end();
 });
 
 io.on("connection", (socket) => {
-  console.log("Client connected");
-
-  // Envia o horário atual a cada segundo
-  setInterval(() => {
-    socket.emit("time", new Date().toTimeString());
-  }, 1000);
-
-  socket.on("disconnect", () => {
-    console.log("Client disconnected");
+  console.log("user connected");
+  socket.on("message", (ms) => {
+    io.emit("message", ms);
   });
 });
 
