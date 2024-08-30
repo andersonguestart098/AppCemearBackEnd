@@ -1,6 +1,6 @@
 import express from "express";
 import http from "http";
-import { Server } from "socket.io";
+import { Server as SocketIOServer } from "socket.io";
 import { PrismaClient } from "@prisma/client";
 import cors from "cors";
 import multer from "multer";
@@ -27,7 +27,7 @@ app.use(cors(corsOptions));
 const prisma = new PrismaClient();
 const server = http.createServer(app);
 
-const io = new Server(server, {
+const io = new SocketIOServer(server, {
   cors: {
     origin: [
       "http://localhost:3000",
@@ -37,10 +37,22 @@ const io = new Server(server, {
   },
 });
 
+app.use(express.static(path.join(__dirname, "public")));
+
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
 io.on("connection", (socket) => {
-  console.log("A user connected");
+  console.log("Client connected");
+
+  // Envia o horário atual a cada segundo
+  setInterval(() => {
+    socket.emit("time", new Date().toTimeString());
+  }, 1000);
+
   socket.on("disconnect", () => {
-    console.log("User disconnected");
+    console.log("Client disconnected");
   });
 });
 
@@ -63,10 +75,6 @@ const upload = multer({
     if (mimetype && extname) return cb(null, true);
     else cb(new Error("Apenas arquivos JPEG, PNG e PDF são permitidos"));
   },
-});
-
-app.get("/", (req: Request, res: Response) => {
-  res.send("Bem-vindo ao servidor!");
 });
 
 app.get("/socket-test", (req, res) => {
