@@ -39,7 +39,6 @@ const io = new Server(server, {
 
 io.on("connection", (socket) => {
   console.log("A user connected");
-  // Emissão de eventos de socket.io
   socket.on("disconnect", () => {
     console.log("User disconnected");
   });
@@ -68,6 +67,10 @@ const upload = multer({
 
 app.get("/", (req: Request, res: Response) => {
   res.send("Bem-vindo ao servidor!");
+});
+
+app.get("/socket-test", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "socket-test.html"));
 });
 
 const uploadsDir = path.join(__dirname, "../uploads");
