@@ -14,6 +14,7 @@ import { Request, Response } from "express";
 
 const app = express();
 app.use(express.json());
+
 const corsOptions = {
   origin: [
     "http://localhost:3000",
@@ -25,6 +26,7 @@ app.use(cors(corsOptions));
 
 const prisma = new PrismaClient();
 const server = http.createServer(app);
+
 const io = new Server(server, {
   cors: {
     origin: [
@@ -33,6 +35,14 @@ const io = new Server(server, {
     ],
     methods: ["GET", "POST"],
   },
+});
+
+io.on("connection", (socket) => {
+  console.log("A user connected");
+  // Emissão de eventos de socket.io
+  socket.on("disconnect", () => {
+    console.log("User disconnected");
+  });
 });
 
 // Configuração do multer
