@@ -305,7 +305,7 @@ app.get("/userTipoUsuario", auth, async (req: Request, res: Response) => {
 });
 
 // Configure o servidor para escutar na porta fornecida pelo Heroku ou na porta padrão
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 17143;
 app.listen(PORT, () => {
   console.log(`Servidor iniciado na porta ${PORT}`);
 });
