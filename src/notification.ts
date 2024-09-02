@@ -18,7 +18,7 @@ export async function sendNotification(subscription: any, payload: any) {
     console.log("Notificação enviada com sucesso!", response);
     return response;
   } catch (error) {
-    console.error("Erro ao enviar notificação", error);
+    console.error("Erro ao enviar Notificação", error);
     throw error;
   }
 }
