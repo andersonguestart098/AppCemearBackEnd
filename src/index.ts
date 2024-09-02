@@ -34,10 +34,10 @@ const server = http.createServer(app);
 
 const io = new SocketIOServer(server, {
   cors: {
-    origin: [
-      "http://localhost:3000",
-      "https://cemear-844a30ef7d3e.herokuapp.com",
-    ],
+    origin:
+      process.env.NODE_ENV === "production"
+        ? "https://cemear-844a30ef7d3e.herokuapp.com"
+        : "http://localhost:3000",
     methods: ["GET", "POST"],
   },
 });
