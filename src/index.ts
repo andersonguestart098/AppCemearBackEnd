@@ -151,10 +151,15 @@ app.get("/download/:id", async (req, res) => {
 });
 
 app.get("/posts", async (req, res) => {
-  const posts = await prisma.post.findMany({
-    orderBy: { created_at: "desc" },
-  });
-  res.json(posts);
+  try {
+    console.log("Iniciando fetch de posts...");
+    const posts = await prisma.post.findMany();
+    console.log("Posts recuperados com sucesso:", posts);
+    res.json(posts);
+  } catch (error) {
+    console.error("Erro ao recuperar posts:", error);
+    res.status(500).json({ error: "Erro interno do servidor" });
+  }
 });
 
 app.post("/posts", async (req, res) => {

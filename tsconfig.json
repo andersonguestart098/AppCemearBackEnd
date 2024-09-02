@@ -7,6 +7,6 @@
     "forceConsistentCasingInFileNames": true,
     "outDir": "./dist"
   },
-  "include": ["src/**/*.ts", "testDbConnection.ts"],
+  "include": ["src/**/*.ts", "testPrismaConnection.ts"],
   "exclude": ["node_modules"]
 }
