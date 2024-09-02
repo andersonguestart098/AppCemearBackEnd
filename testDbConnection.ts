@@ -13,5 +13,5 @@ mongoose
     mongoose.connection.close(); // Feche a conexão após o teste
   })
   .catch((err: any) => {
-    console.error("Erro ao conectar com o MongoDB:", err);
+    console.error("Error ao conectar com o MongoDB:", err);
   });
