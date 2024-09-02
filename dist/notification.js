@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sendNotification = sendNotification;
+exports.sendNotification = void 0;
 const web_push_1 = __importDefault(require("web-push"));
 const vapidKeys = {
     publicKey: "BF_dDzXcKHG9Jbdyirin5s6L7NNdNT7kQvGyQkuztdvHBQlxspD46dLUFN4NNR9NChqOItG7nIKcK6McZXeY7SE",
@@ -32,3 +32,4 @@ function sendNotification(subscription, payload) {
         }
     });
 }
+exports.sendNotification = sendNotification;

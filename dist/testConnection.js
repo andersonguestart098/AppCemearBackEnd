@@ -20,7 +20,7 @@ const client = new mongodb_1.MongoClient(uri, {
         strict: true,
         deprecationErrors: true,
     },
-    tls: true, // Força o uso de TLS
+    tls: true,
     tlsAllowInvalidCertificates: true, // Ignora certificados inválidos (não recomendado para produção)
 });
 function run() {
