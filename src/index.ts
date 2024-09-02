@@ -25,7 +25,11 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
-const prisma = new PrismaClient();
+// Inicialização do PrismaClient com logs detalhados
+const prisma = new PrismaClient({
+  log: ["query", "info", "warn", "error"],
+});
+
 const server = http.createServer(app);
 
 const io = new SocketIOServer(server, {
