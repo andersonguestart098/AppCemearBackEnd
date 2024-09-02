@@ -34,9 +34,13 @@ const server = http.createServer(app);
 
 const io = new SocketIOServer(server, {
   cors: {
-    origin: "*", // Permite conexões de qualquer origem. Ajuste conforme necessário.
+    origin: [
+      "http://localhost:3000",
+      "https://cemear-844a30ef7d3e.herokuapp.com",
+    ],
     methods: ["GET", "POST"],
   },
+  path: "/socket.io", // Certifique-se de que o caminho esteja correto
 });
 
 app.use(express.static(path.join(__dirname, "public")));
