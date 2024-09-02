@@ -19,7 +19,7 @@ const corsOptions = {
   origin: [
     "http://localhost:3000",
     "https://cemear-844a30ef7d3e.herokuapp.com",
-    "https://66d61447afb800453e1e3a20--lively-piroshki-955a31.netlify.app", // Sem barra no final
+    "https://66d6181f7a08694ac1628268--fantastic-eclair-df8cfe.netlify.app", // Adicione o novo domínio aqui
   ],
   methods: ["GET", "POST"],
   allowedHeaders: ["Content-Type", "Authorization"],
