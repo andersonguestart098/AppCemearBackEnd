@@ -6,7 +6,7 @@
     "start": "node dist/index.js",
     "build": "tsc",
     "heroku-postbuild": "npm run build",
-    "test:db": "ts-node testDbConnection"
+    "test:connection": "ts-node testPrismaConnection.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.19.0",
