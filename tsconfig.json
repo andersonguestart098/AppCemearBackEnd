@@ -5,8 +5,9 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "outDir": "./dist"
+    "outDir": "./dist",
+    "rootDir": "./src"
   },
-  "include": ["src/**/*.ts", "testPrismaConnection.ts"],
+  "include": ["src/**/*.ts"], // Modificado para incluir apenas arquivos dentro de 'src'
   "exclude": ["node_modules"]
 }

@@ -8,12 +8,39 @@ import path from "path";
 import fs from "fs";
 import notifier from "node-notifier";
 import { sendNotification } from "./notification";
-import authRoutes from "./routes/auth"; // Apenas uma importação para rotas de autenticação
+import authRoutes from "./routes/auth"; // Rotas de autenticação
 import auth from "./middleware/auth"; // Middleware de autenticação
 import { Request, Response } from "express";
-import { Socket } from "dgram";
+import * as dotenv from "dotenv";
+dotenv.config();
 
 const app = express();
+const server = http.createServer(app);
+
+// Inicialize o Socket.IO antes de qualquer middleware ou rota
+const io = new SocketIOServer(server, {
+  cors: {
+    origin: [
+      "http://localhost:3000",
+      "https://cemear-844a30ef7d3e.herokuapp.com",
+    ],
+    methods: ["GET", "POST"],
+  },
+  path: "/socket.io",
+});
+
+io.on("connection", (socket) => {
+  console.log("User connected");
+
+  socket.on("message", (msg) => {
+    io.emit("message", msg);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("User disconnected");
+  });
+});
+
 app.use(express.json());
 
 const corsOptions = {
@@ -30,30 +57,10 @@ const prisma = new PrismaClient({
   log: ["query", "info", "warn", "error"],
 });
 
-const server = http.createServer(app);
-
-const io = new SocketIOServer(server, {
-  cors: {
-    origin: [
-      "http://localhost:3000",
-      "https://cemear-844a30ef7d3e.herokuapp.com",
-    ],
-    methods: ["GET", "POST"],
-  },
-});
-
 app.use(express.static(path.join(__dirname, "public")));
 
 app.get("/", (req, res) => {
-  res.write(`Soket IO iniciou na porta: ${PORT}`);
-  res.end();
-});
-
-io.on("connection", (socket) => {
-  console.log("user connected");
-  socket.on("message", (ms) => {
-    io.emit("message", ms);
-  });
+  res.send(`Socket IO iniciou na porta: ${PORT}`);
 });
 
 // Configuração do multer
@@ -83,7 +90,7 @@ app.get("/socket-test", (req, res) => {
 
 const uploadsDir = path.join(__dirname, "../uploads");
 
-app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+app.use("/uploads", express.static(uploadsDir));
 
 app.get("/files", (req, res) => {
   fs.readdir(uploadsDir, (err, files) => {
@@ -341,7 +348,10 @@ app.get("/userTipoUsuario", auth, async (req: Request, res: Response) => {
 });
 
 // Configure o servidor para escutar na porta fornecida pelo Heroku ou na porta padrão
-const PORT = process.env.PORT || 17143;
-app.listen(PORT, () => {
+const PORT = process.env.PORT || 3001;
+const DATABASE_URL = process.env.DATABASE_URL;
+console.log(`DATABASE_URL: ${DATABASE_URL}`); // Verificar se o DATABASE_URL está correto
+
+server.listen(PORT, () => {
   console.log(`Servidor iniciado na porta ${PORT}`);
 });

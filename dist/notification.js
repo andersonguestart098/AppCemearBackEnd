@@ -12,11 +12,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sendNotification = void 0;
+exports.sendNotification = sendNotification;
 const web_push_1 = __importDefault(require("web-push"));
 const vapidKeys = {
-    publicKey: "BF_dDzXcKHG9Jbdyirin5s6L7NNdNT7kQvGyQkuztdvHBQlxspD46dLUFN4NNR9NChqOItG7nIKcK6McZXeY7SE",
-    privateKey: "CM4acuevFWkJmBtahb4BZQ1MBTMMh9BUSD4fy-iVMU8",
+    publicKey: "BDFt6_CYV5ca61PV7V3_ULiIjsNnikV5wxeU-4fHiFYrAeGlJ6U99C8lWSxz3aPgPe7PClp23wa2rgH25tDhj2Q",
+    privateKey: "Pj3sUklVQR3xHxsvbF1uLiQWolD42o_obZy_s5Op8gU",
 };
 web_push_1.default.setVapidDetails("mailto:example@yourdomain.org", vapidKeys.publicKey, vapidKeys.privateKey);
 function sendNotification(subscription, payload) {
@@ -27,9 +27,8 @@ function sendNotification(subscription, payload) {
             return response;
         }
         catch (error) {
-            console.error("Erro ao enviar notificação", error);
+            console.error("Erro ao enviar Notificação", error);
             throw error;
         }
     });
 }
-exports.sendNotification = sendNotification;

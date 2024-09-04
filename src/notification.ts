@@ -2,8 +2,8 @@ import webPush from "web-push";
 
 const vapidKeys = {
   publicKey:
-    "BF_dDzXcKHG9Jbdyirin5s6L7NNdNT7kQvGyQkuztdvHBQlxspD46dLUFN4NNR9NChqOItG7nIKcK6McZXeY7SE",
-  privateKey: "CM4acuevFWkJmBtahb4BZQ1MBTMMh9BUSD4fy-iVMU8",
+    "BDFt6_CYV5ca61PV7V3_ULiIjsNnikV5wxeU-4fHiFYrAeGlJ6U99C8lWSxz3aPgPe7PClp23wa2rgH25tDhj2Q",
+  privateKey: "Pj3sUklVQR3xHxsvbF1uLiQWolD42o_obZy_s5Op8gU",
 };
 
 webPush.setVapidDetails(
