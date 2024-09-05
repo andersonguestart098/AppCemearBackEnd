@@ -22,7 +22,7 @@ const io = new SocketIOServer(server, {
   cors: {
     origin: [
       "http://localhost:3000",
-      "https://cemear-844a30ef7d3e.herokuapp.com",
+      "https://cemear-b549eb196d7c.herokuapp.com",
     ],
     methods: ["GET", "POST"],
   },
@@ -46,8 +46,7 @@ app.use(express.json());
 const corsOptions = {
   origin: [
     "http://localhost:3000",
-    "https://cemear-844a30ef7d3e.herokuapp.com",
-    "https://66d6181f7a08694ac1628268--fantastic-eclair-df8cfe.netlify.app", // Adicione o novo domínio aqui
+    "https://cemear-b549eb196d7c.herokuapp.com",
   ],
   methods: ["GET", "POST"],
   allowedHeaders: ["Content-Type", "Authorization"],
@@ -240,7 +239,7 @@ app.post("/sendNotification", async (req, res) => {
 
   const { titulo } = req.body;
   const payload = JSON.stringify({
-    title: titulo || "Novo Post!",
+    title: titulo || `${titulo}`,
     body: `Um novo post foi criado com o título: ${titulo}`,
     icon: "/path/to/icon.png",
   });
