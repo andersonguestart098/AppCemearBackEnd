@@ -276,37 +276,19 @@ app.post("/sendNotification", async (req, res) => {
   console.log("Recebendo requisição para enviar notificação");
 
   try {
-    // Buscar a primeira assinatura no banco de dados
     const subscription = await prisma.subscription.findFirst();
-
     if (subscription) {
+      // Decodifica o campo "keys" para obter p256dh e auth
+      const keys = JSON.parse(subscription.keys);
+
+      const p256dh = Buffer.from(keys.p256dh, "base64");
+      const auth = Buffer.from(keys.auth, "base64");
+
       console.log(
         "Assinatura encontrada para envio de notificação:",
         subscription
       );
 
-      // Recuperar as chaves armazenadas no campo "keys" como JSON
-      const keys = JSON.parse(subscription.keys);
-
-      // Decodificar as chaves p256dh e auth de base64 para Buffer
-      const p256dhBuffer = Buffer.from(keys.p256dh, "base64");
-      const authBuffer = Buffer.from(keys.auth, "base64");
-
-      console.log("Chaves decodificadas:");
-      console.log("p256dh:", p256dhBuffer);
-      console.log("auth:", authBuffer);
-
-      // Verificar se os tamanhos das chaves estão corretos
-      if (p256dhBuffer.length !== 65 || authBuffer.length !== 16) {
-        console.error(
-          "O valor p256dh ou auth da assinatura está com tamanho inválido."
-        );
-        return res.status(400).json({
-          error: "A assinatura tem um valor p256dh ou auth inválido.",
-        });
-      }
-
-      // Preparar a payload da notificação
       const { titulo } = req.body;
       const payload = JSON.stringify({
         title: titulo || "Novo Post!",
@@ -314,17 +296,15 @@ app.post("/sendNotification", async (req, res) => {
         icon: "/path/to/icon.png",
       });
 
-      // Preparar o objeto de assinatura para enviar a notificação
       const subscriptionObject = {
         endpoint: subscription.endpoint,
         keys: {
-          p256dh: keys.p256dh, // Passar as chaves como string base64
-          auth: keys.auth, // Passar as chaves como string base64
+          p256dh: keys.p256dh,
+          auth: keys.auth,
         },
       };
 
       try {
-        // Enviar a notificação push
         await sendNotification(subscriptionObject, payload);
         console.log("Notificação push enviada com sucesso!");
         res.status(200).json({ message: "Notificação enviada com sucesso!" });
@@ -344,39 +324,37 @@ app.post("/sendNotification", async (req, res) => {
 app.post("/subscribe", async (req, res) => {
   const { endpoint, keys } = req.body;
 
-  console.log("Dados de assinatura recebidos:", { endpoint, keys });
+  // Valida as chaves de assinatura
+  const p256dhBuffer = Buffer.from(keys.p256dh, "base64");
+  const authBuffer = Buffer.from(keys.auth, "base64");
+
+  if (p256dhBuffer.length !== 65 || authBuffer.length !== 16) {
+    console.error("Chaves p256dh ou auth têm o comprimento incorreto.");
+    return res.status(400).json({ error: "Chaves de assinatura inválidas." });
+  }
 
   try {
+    // Crie o campo "keys" com os valores p256dh e auth
+    const keysJson = JSON.stringify({
+      p256dh: keys.p256dh,
+      auth: keys.auth,
+    });
+
+    // Armazena as informações no banco de dados
     const subscription = await prisma.subscription.create({
       data: {
-        endpoint: endpoint,
-        p256dh: keys.p256dh, // Armazenar as chaves corretamente
+        endpoint,
+        p256dh: keys.p256dh,
         auth: keys.auth,
-        keys: JSON.stringify(keys), // Opcional: Armazenar as chaves como JSON
+        keys: keysJson, // Incluindo o campo keys conforme esperado
       },
     });
 
-    console.log(
-      "Assinatura salva com sucesso no banco de dados:",
-      subscription
-    );
-    res.status(201).json(subscription);
+    console.log("Assinatura salva com sucesso:", subscription);
+    res.status(201).json({ message: "Assinatura salva com sucesso." });
   } catch (error) {
-    console.error("Erro ao salvar a assinatura no banco de dados:", error);
-    res.status(500).json({ error: "Erro ao salvar a assinatura" });
-  }
-});
-
-app.get("/subscriptions", async (req, res) => {
-  console.log("Requisição para obter todas as assinaturas recebida");
-
-  try {
-    const subscriptions = await prisma.subscription.findMany();
-    console.log("Assinaturas obtidas com sucesso:", subscriptions);
-    res.json(subscriptions);
-  } catch (error) {
-    console.error("Erro ao obter assinaturas:", error);
-    res.status(500).send("Erro ao obter assinaturas");
+    console.error("Erro ao salvar assinatura:", error);
+    res.status(500).json({ error: "Erro ao salvar assinatura" });
   }
 });
 
