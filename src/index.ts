@@ -306,11 +306,13 @@ app.post("/sendNotification", async (req, res) => {
 app.post("/subscribe", async (req, res) => {
   const { endpoint, keys, expirationTime } = req.body;
 
-  console.log("Recebendo nova assinatura para notificações:", {
-    endpoint,
-    keys,
-    expirationTime,
-  });
+  // Valida o comprimento do p256dh ao receber a assinatura
+  if (Buffer.from(keys.p256dh, "base64").length !== 65) {
+    console.error("O valor p256dh da assinatura recebido não tem 65 bytes.");
+    return res
+      .status(400)
+      .json({ error: "A assinatura tem um valor p256dh inválido." });
+  }
 
   try {
     const savedSubscription = await prisma.subscription.create({
@@ -327,7 +329,6 @@ app.post("/subscribe", async (req, res) => {
       "Assinatura salva com sucesso no banco de dados:",
       savedSubscription
     );
-
     res.status(201).send(savedSubscription);
   } catch (error) {
     console.error("Erro ao criar assinatura:", error);
