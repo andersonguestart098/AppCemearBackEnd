@@ -278,11 +278,8 @@ app.post("/sendNotification", async (req, res) => {
   try {
     const subscription = await prisma.subscription.findFirst();
     if (subscription) {
-      // Decodifica o campo "keys" para obter p256dh e auth
-      const keys = JSON.parse(subscription.keys);
-
-      const p256dh = Buffer.from(keys.p256dh, "base64");
-      const auth = Buffer.from(keys.auth, "base64");
+      const p256dh = Buffer.from(subscription.p256dh, "base64");
+      const auth = Buffer.from(subscription.auth, "base64");
 
       console.log(
         "Assinatura encontrada para envio de notificação:",
@@ -299,8 +296,8 @@ app.post("/sendNotification", async (req, res) => {
       const subscriptionObject = {
         endpoint: subscription.endpoint,
         keys: {
-          p256dh: keys.p256dh,
-          auth: keys.auth,
+          p256dh: subscription.p256dh,
+          auth: subscription.auth,
         },
       };
 
@@ -334,19 +331,13 @@ app.post("/subscribe", async (req, res) => {
   }
 
   try {
-    // Crie o campo "keys" com os valores p256dh e auth
-    const keysJson = JSON.stringify({
-      p256dh: keys.p256dh,
-      auth: keys.auth,
-    });
-
-    // Armazena as informações no banco de dados
+    // Armazena as informações no banco de dados, incluindo o campo "keys"
     const subscription = await prisma.subscription.create({
       data: {
         endpoint,
-        p256dh: keys.p256dh,
-        auth: keys.auth,
-        keys: keysJson, // Incluindo o campo keys conforme esperado
+        p256dh: keys.p256dh, // Armazena o p256dh diretamente
+        auth: keys.auth, // Armazena o auth diretamente
+        keys: JSON.stringify(keys), // Armazena o campo "keys" como string JSON
       },
     });
 
