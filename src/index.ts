@@ -174,7 +174,11 @@ app.get("/download/:id", async (req, res) => {
 app.get("/posts", async (req, res) => {
   try {
     console.log("Iniciando fetch de posts...");
-    const posts = await prisma.post.findMany();
+    const posts = await prisma.post.findMany({
+      orderBy: {
+        id: "desc",
+      },
+    });
     console.log("Posts recuperados com sucesso:", posts);
     res.json(posts);
   } catch (error) {
