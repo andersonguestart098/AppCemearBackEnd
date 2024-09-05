@@ -218,7 +218,11 @@ app.post("/posts", async (req, res) => {
     if (subscription) {
       console.log("Assinatura encontrada no banco de dados:", subscription);
 
-      // Verifica o comprimento de p256dh e auth antes de enviar
+      // Logs adicionais para verificação de como os dados estão vindo
+      console.log("p256dh bruto do banco:", subscription.p256dh);
+      console.log("auth bruto do banco:", subscription.auth);
+
+      // Converte as chaves de base64 para Buffer
       const p256dhBuffer = Buffer.from(subscription.p256dh, "base64");
       const authBuffer = Buffer.from(subscription.auth, "base64");
 
