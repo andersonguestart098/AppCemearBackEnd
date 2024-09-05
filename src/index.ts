@@ -219,6 +219,14 @@ app.post("/posts", async (req, res) => {
     if (subscription) {
       console.log("Assinatura encontrada no banco de dados:", subscription);
 
+      // Valida o comprimento do p256dh
+      if (Buffer.from(subscription.p256dh, "base64").length !== 65) {
+        console.error("O valor p256dh da assinatura não tem 65 bytes.");
+        return res
+          .status(400)
+          .json({ error: "A assinatura tem um valor p256dh inválido." });
+      }
+
       const payload = JSON.stringify({
         title: titulo,
         body: "Novo Post!",
