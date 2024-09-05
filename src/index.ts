@@ -202,7 +202,6 @@ app.post("/posts", async (req, res) => {
     console.log("Post criado com sucesso:", post);
 
     io.emit("new-post");
-
     console.log("Emitindo evento de novo post via Socket.IO");
 
     notifier.notify({
@@ -211,22 +210,32 @@ app.post("/posts", async (req, res) => {
       sound: true,
       wait: true,
     });
-
     console.log("Notificação local enviada via notifier");
 
+    // Recupera a assinatura do banco de dados
     const subscription = await prisma.subscription.findFirst();
 
     if (subscription) {
       console.log("Assinatura encontrada no banco de dados:", subscription);
 
-      // Valida o comprimento do p256dh
-      if (Buffer.from(subscription.p256dh, "base64").length !== 65) {
-        console.error("O valor p256dh da assinatura não tem 65 bytes.");
-        return res
-          .status(400)
-          .json({ error: "A assinatura tem um valor p256dh inválido." });
+      // Verifica o comprimento de p256dh e auth antes de enviar
+      const p256dhBuffer = Buffer.from(subscription.p256dh, "base64");
+      const authBuffer = Buffer.from(subscription.auth, "base64");
+
+      console.log("Comprimento de p256dh:", p256dhBuffer.length);
+      console.log("Comprimento de auth:", authBuffer.length);
+
+      // Valida o comprimento correto do p256dh e auth
+      if (p256dhBuffer.length !== 65 || authBuffer.length !== 16) {
+        console.error(
+          "O valor p256dh ou auth da assinatura está com tamanho inválido."
+        );
+        return res.status(400).json({
+          error: "A assinatura tem um valor p256dh ou auth inválido.",
+        });
       }
 
+      // Preparação da payload de notificação
       const payload = JSON.stringify({
         title: titulo,
         body: "Novo Post!",
@@ -251,6 +260,7 @@ app.post("/posts", async (req, res) => {
       console.error("Nenhuma assinatura encontrada no banco de dados.");
     }
 
+    // Retorna o post criado
     res.status(201).json(post);
   } catch (error) {
     console.error("Erro ao criar post:", error);
