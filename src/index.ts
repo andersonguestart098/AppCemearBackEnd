@@ -194,16 +194,26 @@ app.post("/posts", async (req, res) => {
     titulo,
   });
 
+  if (!conteudo || !titulo) {
+    console.error("Dados de postagem inválidos: conteúdo ou título faltando");
+    return res.status(400).json({
+      error: "Conteúdo e título são obrigatórios.",
+    });
+  }
+
   try {
+    // Criação do post no banco de dados
     const post = await prisma.post.create({
       data: { conteudo, titulo },
     });
 
     console.log("Post criado com sucesso:", post);
 
+    // Emitindo o evento para o Socket.IO
     io.emit("new-post");
     console.log("Emitindo evento de novo post via Socket.IO");
 
+    // Enviando notificação local
     notifier.notify({
       title: "Novo Post",
       message: `Novo post: ${titulo}`,
@@ -212,24 +222,20 @@ app.post("/posts", async (req, res) => {
     });
     console.log("Notificação local enviada via notifier");
 
-    // Recupera a assinatura do banco de dados
+    // Recuperando assinatura do banco de dados
     const subscription = await prisma.subscription.findFirst();
 
     if (subscription) {
       console.log("Assinatura encontrada no banco de dados:", subscription);
 
-      // Logs completos das chaves
-      console.log("p256dh completo do banco:", subscription.p256dh);
-      console.log("auth completo do banco:", subscription.auth);
-
-      // Converte as chaves de base64 para Buffer
+      // Conversão das chaves para Buffer
       const p256dhBuffer = Buffer.from(subscription.p256dh, "base64");
       const authBuffer = Buffer.from(subscription.auth, "base64");
 
       console.log("Comprimento de p256dh:", p256dhBuffer.length);
       console.log("Comprimento de auth:", authBuffer.length);
 
-      // Valida o comprimento correto do p256dh e auth
+      // Validação do tamanho das chaves
       if (p256dhBuffer.length !== 65 || authBuffer.length !== 16) {
         console.error(
           "O valor p256dh ou auth da assinatura está com tamanho inválido."
@@ -239,7 +245,7 @@ app.post("/posts", async (req, res) => {
         });
       }
 
-      // Preparação da payload de notificação
+      // Preparando payload de notificação
       const payload = JSON.stringify({
         title: titulo,
         body: "Novo Post!",
@@ -264,11 +270,11 @@ app.post("/posts", async (req, res) => {
       console.error("Nenhuma assinatura encontrada no banco de dados.");
     }
 
-    // Retorna o post criado
-    res.status(201).json(post);
+    // Retorna o post criado com status 201
+    return res.status(201).json(post);
   } catch (error) {
     console.error("Erro ao criar post:", error);
-    res.status(500).json({ error: "Erro ao criar post" });
+    return res.status(500).json({ error: "Erro ao criar post" });
   }
 });
 
