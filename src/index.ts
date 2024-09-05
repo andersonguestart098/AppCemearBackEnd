@@ -264,9 +264,8 @@ app.post("/sendNotification", async (req, res) => {
   try {
     const subscription = await prisma.subscription.findFirst();
     if (subscription) {
-      console.log("Assinatura encontrada no banco de dados:", subscription);
+      console.log("Assinatura encontrada:", subscription);
 
-      // Decodificar as chaves de base64 para Buffer
       const p256dh = Buffer.from(subscription.p256dh, "base64");
       const auth = Buffer.from(subscription.auth, "base64");
 
@@ -278,8 +277,6 @@ app.post("/sendNotification", async (req, res) => {
           .json({ error: "Chaves de assinatura inválidas." });
       }
 
-      console.log("Chaves validadas com sucesso.");
-
       const { titulo } = req.body;
       const payload = JSON.stringify({
         title: titulo || "Novo Post!",
@@ -290,8 +287,8 @@ app.post("/sendNotification", async (req, res) => {
       const subscriptionObject = {
         endpoint: subscription.endpoint,
         keys: {
-          p256dh: p256dh.toString("base64"), // Converter novamente para base64 se necessário
-          auth: auth.toString("base64"), // Converter novamente para base64 se necessário
+          p256dh: subscription.p256dh,
+          auth: subscription.auth,
         },
       };
 
@@ -304,7 +301,7 @@ app.post("/sendNotification", async (req, res) => {
         res.status(500).json({ error: "Erro ao enviar notificação push" });
       }
     } else {
-      console.error("Nenhuma assinatura encontrada no banco de dados.");
+      console.error("Nenhuma assinatura encontrada.");
       res.status(404).json({ error: "Nenhuma assinatura encontrada." });
     }
   } catch (error) {
@@ -316,34 +313,26 @@ app.post("/sendNotification", async (req, res) => {
 app.post("/subscribe", async (req, res) => {
   const { endpoint, keys } = req.body;
 
-  if (!endpoint || !keys || !keys.p256dh || !keys.auth) {
-    return res.status(400).json({ error: "Assinatura inválida." });
-  }
+  console.log("Dados de assinatura recebidos:", { endpoint, keys });
 
   try {
-    // Verifique o tamanho das chaves antes de armazená-las
-    if (
-      Buffer.from(keys.p256dh, "base64").length !== 65 ||
-      Buffer.from(keys.auth, "base64").length !== 16
-    ) {
-      return res.status(400).json({ error: "Chaves de assinatura inválidas." });
-    }
-
-    const savedSubscription = await prisma.subscription.create({
+    const subscription = await prisma.subscription.create({
       data: {
         endpoint: endpoint,
-        p256dh: keys.p256dh,
+        p256dh: keys.p256dh, // Armazenar as chaves corretamente
         auth: keys.auth,
-        keys: JSON.stringify(keys), // Inclua as chaves como JSON
+        keys: JSON.stringify(keys), // Opcional: Armazenar as chaves como JSON
       },
     });
 
-    console.log("Assinatura salva no servidor:", savedSubscription);
-
-    res.status(201).send(savedSubscription);
+    console.log(
+      "Assinatura salva com sucesso no banco de dados:",
+      subscription
+    );
+    res.status(201).json(subscription);
   } catch (error) {
-    console.error("Erro ao salvar assinatura:", error);
-    res.status(500).send("Erro ao salvar assinatura");
+    console.error("Erro ao salvar a assinatura no banco de dados:", error);
+    res.status(500).json({ error: "Erro ao salvar a assinatura" });
   }
 });
 
