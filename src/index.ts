@@ -23,6 +23,7 @@ const io = new SocketIOServer(server, {
     origin: [
       "http://localhost:3000",
       "https://cemear-b549eb196d7c.herokuapp.com",
+      "https://66da07a725d2d96ba6e87ec7--lucky-vacherin-fc35fb.netlify.app/login",
     ],
     methods: ["GET", "POST"],
   },
@@ -47,6 +48,7 @@ const corsOptions = {
   origin: [
     "http://localhost:3000",
     "https://cemear-b549eb196d7c.herokuapp.com",
+    "https://66da07a725d2d96ba6e87ec7--lucky-vacherin-fc35fb.netlify.app/login",
   ],
   methods: ["GET", "POST"],
   allowedHeaders: ["Content-Type", "Authorization"],
