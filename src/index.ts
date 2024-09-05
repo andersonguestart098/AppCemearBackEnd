@@ -263,39 +263,49 @@ app.post("/sendNotification", async (req, res) => {
 
   try {
     const subscription = await prisma.subscription.findFirst();
+    if (subscription) {
+      console.log("Assinatura encontrada no banco de dados:", subscription);
 
-    if (!subscription) {
+      // Decodificar as chaves de base64 para Buffer
+      const p256dh = Buffer.from(subscription.p256dh, "base64");
+      const auth = Buffer.from(subscription.auth, "base64");
+
+      // Validação do tamanho das chaves
+      if (p256dh.length !== 65 || auth.length !== 16) {
+        console.error("Chaves recuperadas têm tamanhos inválidos.");
+        return res
+          .status(400)
+          .json({ error: "Chaves de assinatura inválidas." });
+      }
+
+      console.log("Chaves validadas com sucesso.");
+
+      const { titulo } = req.body;
+      const payload = JSON.stringify({
+        title: titulo || "Novo Post!",
+        body: `Um novo post foi criado com o título: ${titulo}`,
+        icon: "/path/to/icon.png",
+      });
+
+      const subscriptionObject = {
+        endpoint: subscription.endpoint,
+        keys: {
+          p256dh: p256dh.toString("base64"), // Converter novamente para base64 se necessário
+          auth: auth.toString("base64"), // Converter novamente para base64 se necessário
+        },
+      };
+
+      try {
+        await sendNotification(subscriptionObject, payload);
+        console.log("Notificação push enviada com sucesso!");
+        res.status(200).json({ message: "Notificação enviada com sucesso!" });
+      } catch (error) {
+        console.error("Erro ao enviar notificação push", error);
+        res.status(500).json({ error: "Erro ao enviar notificação push" });
+      }
+    } else {
       console.error("Nenhuma assinatura encontrada no banco de dados.");
-      return res.status(404).json({ error: "Nenhuma assinatura encontrada." });
-    }
-
-    console.log(
-      "Assinatura encontrada para envio de notificação:",
-      subscription
-    );
-
-    const { titulo } = req.body;
-    const payload = JSON.stringify({
-      title: titulo || "Novo Post!",
-      body: `Um novo post foi criado com o título: ${titulo}`,
-      icon: "/path/to/icon.png",
-    });
-
-    const subscriptionObject = {
-      endpoint: subscription.endpoint,
-      keys: {
-        p256dh: subscription.p256dh,
-        auth: subscription.auth,
-      },
-    };
-
-    try {
-      await sendNotification(subscriptionObject, payload);
-      console.log("Notificação push enviada com sucesso!");
-      res.status(200).json({ message: "Notificação enviada com sucesso!" });
-    } catch (error) {
-      console.error("Erro ao enviar notificação push", error);
-      res.status(500).json({ error: "Erro ao enviar notificação push" });
+      res.status(404).json({ error: "Nenhuma assinatura encontrada." });
     }
   } catch (error) {
     console.error("Erro ao buscar assinatura:", error);
