@@ -11,11 +11,8 @@ import { sendNotification } from "./notification";
 import authRoutes from "./routes/auth"; // Rotas de autenticação
 import auth from "./middleware/auth"; // Middleware de autenticação
 import { Request, Response } from "express";
-<<<<<<< HEAD
 import * as dotenv from "dotenv";
 dotenv.config();
-=======
->>>>>>> b45e33c46f10af2e16a8def8b1d85e79ed87a97d
 
 const app = express();
 const server = http.createServer(app);
@@ -63,27 +60,10 @@ const prisma = new PrismaClient({
   log: ["query", "info", "warn", "error"],
 });
 
-<<<<<<< HEAD
 app.use(express.static(path.join(__dirname, "public")));
 
 app.get("/", (req, res) => {
   res.send(`Socket IO iniciou na porta: ${PORT}`);
-=======
-// Criar servidor HTTP
-const server = http.createServer(app);
-
-// Configuração do Socket.IO
-const io = new SocketIOServer(server, {
-  cors: corsOptions, // Usar o mesmo objeto de configuração de CORS
-  path: "/socket.io", // Certifique-se de que o caminho esteja correto
-});
-
-io.on("connection", (socket) => {
-  console.log("user connected");
-  socket.on("message", (ms) => {
-    io.emit("message", ms);
-  });
->>>>>>> b45e33c46f10af2e16a8def8b1d85e79ed87a97d
 });
 
 app.use(express.static(path.join(__dirname, "public")));
@@ -371,17 +351,11 @@ app.get("/userTipoUsuario", auth, async (req: Request, res: Response) => {
   }
 });
 
-<<<<<<< HEAD
 // Configure o servidor para escutar na porta fornecida pelo Heroku ou na porta padrão
 const PORT = process.env.PORT || 3001;
 const DATABASE_URL = process.env.DATABASE_URL;
 console.log(`DATABASE_URL: ${DATABASE_URL}`); // Verificar se o DATABASE_URL está correto
 
-=======
-const PORT = process.env.PORT || 17143;
-
-// Alteração para utilizar o servidor HTTP e o Socket.IO juntos
->>>>>>> b45e33c46f10af2e16a8def8b1d85e79ed87a97d
 server.listen(PORT, () => {
   console.log(`Servidor iniciado na porta ${PORT}`);
 });
