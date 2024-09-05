@@ -273,7 +273,7 @@ app.post("/posts", async (req, res) => {
         console.error("Erro ao enviar notificação push", error);
       }
     } else {
-      console.error("Nenhuma assinatura encontrada no banco de dados.");
+      console.error("Nenhumaaa assinatura encontrada no banco de dados.");
     }
 
     // Retorna o post criado com status 201
