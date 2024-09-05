@@ -336,10 +336,10 @@ app.post("/subscribe", async (req, res) => {
 
   // Logando as chaves recebidas para debug
   console.log("Chaves recebidas do cliente:");
-  console.log("p256dh:", keys.p256dh);
-  console.log("auth:", keys.auth);
+  console.log("p256dh (base64):", keys.p256dh);
+  console.log("auth (base64):", keys.auth);
 
-  // Valida as chaves de assinatura
+  // Converte as chaves de base64 para binário
   const p256dhBuffer = Buffer.from(keys.p256dh, "base64");
   const authBuffer = Buffer.from(keys.auth, "base64");
 
@@ -353,20 +353,20 @@ app.post("/subscribe", async (req, res) => {
   }
 
   try {
-    // Armazena as informações no banco de dados, incluindo o campo "keys"
+    // Armazena as chaves no banco como base64 (string)
     const subscription = await prisma.subscription.create({
       data: {
         endpoint,
-        p256dh: keys.p256dh, // Armazena o p256dh diretamente
-        auth: keys.auth, // Armazena o auth diretamente
-        keys: JSON.stringify(keys), // Armazena o campo "keys" como string JSON
+        p256dh: keys.p256dh, // Armazena como string base64
+        auth: keys.auth, // Armazena como string base64
+        keys: JSON.stringify(keys), // Opcional: se você ainda quiser armazenar a versão em JSON
       },
     });
 
     // Logar o que foi armazenado
     console.log("Assinatura armazenada no banco de dados:");
-    console.log("p256dh armazenado:", subscription.p256dh);
-    console.log("auth armazenado:", subscription.auth);
+    console.log("p256dh armazenado (base64):", subscription.p256dh);
+    console.log("auth armazenado (base64):", subscription.auth);
 
     res.status(201).json({ message: "Assinatura salva com sucesso." });
   } catch (error) {
