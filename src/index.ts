@@ -276,25 +276,19 @@ app.post("/sendNotification", async (req, res) => {
   console.log("Recebendo requisição para enviar notificação");
 
   try {
-    const subscription = await prisma.subscription.findFirst();
+    // Ajuste a consulta para buscar a assinatura mais recente
+    const subscription = await prisma.subscription.findFirst({
+      orderBy: {
+        createdAt: "desc", // Ordena pela data de criação para pegar a assinatura mais recente
+      },
+    });
 
     if (subscription) {
-      // Logando as chaves recuperadas diretamente do banco
+      // Logar as chaves recuperadas
       console.log("Chaves recuperadas diretamente do banco:");
       console.log("p256dh (base64, direto do banco):", subscription.p256dh);
       console.log("auth (base64, direto do banco):", subscription.auth);
 
-      // Tentando acessar os valores diretamente sem Buffer para ver se eles estão truncados
-      const p256dhDirect = subscription.p256dh;
-      const authDirect = subscription.auth;
-
-      console.log("Valores recuperados diretamente (sem decodificar):");
-      console.log("p256dh direto:", p256dhDirect);
-      console.log("auth direto:", authDirect);
-      console.log("Tamanho p256dh direto:", p256dhDirect.length);
-      console.log("Tamanho auth direto:", authDirect.length);
-
-      // Decodificando as chaves para o formato binário
       const p256dhDecoded = Buffer.from(subscription.p256dh, "base64");
       const authDecoded = Buffer.from(subscription.auth, "base64");
 
@@ -302,7 +296,6 @@ app.post("/sendNotification", async (req, res) => {
       console.log("Tamanho de p256dh decodificado:", p256dhDecoded.length);
       console.log("Tamanho de auth decodificado:", authDecoded.length);
 
-      // Verificando se os tamanhos decodificados são corretos
       if (p256dhDecoded.length !== 65 || authDecoded.length !== 16) {
         console.error("Chaves com tamanho inválido após decodificação.");
         return res
@@ -310,7 +303,6 @@ app.post("/sendNotification", async (req, res) => {
           .json({ error: "Chaves com tamanho inválido após decodificação." });
       }
 
-      // Preparar o payload para enviar a notificação
       const { titulo } = req.body;
       const payload = JSON.stringify({
         title: titulo || "Novo Post!",
