@@ -276,20 +276,37 @@ app.post("/sendNotification", async (req, res) => {
   console.log("Recebendo requisição para enviar notificação");
 
   try {
+    // Buscar a primeira assinatura no banco de dados
     const subscription = await prisma.subscription.findFirst();
+
     if (subscription) {
-      // Recuperar as chaves armazenadas no campo "keys" como JSON
-      const keys = JSON.parse(subscription.keys);
-
-      // Decodificar as chaves p256dh e auth
-      const p256dh = Buffer.from(keys.p256dh, "base64");
-      const auth = Buffer.from(keys.auth, "base64");
-
       console.log(
         "Assinatura encontrada para envio de notificação:",
         subscription
       );
 
+      // Recuperar as chaves armazenadas no campo "keys" como JSON
+      const keys = JSON.parse(subscription.keys);
+
+      // Decodificar as chaves p256dh e auth de base64 para Buffer
+      const p256dhBuffer = Buffer.from(keys.p256dh, "base64");
+      const authBuffer = Buffer.from(keys.auth, "base64");
+
+      console.log("Chaves decodificadas:");
+      console.log("p256dh:", p256dhBuffer);
+      console.log("auth:", authBuffer);
+
+      // Verificar se os tamanhos das chaves estão corretos
+      if (p256dhBuffer.length !== 65 || authBuffer.length !== 16) {
+        console.error(
+          "O valor p256dh ou auth da assinatura está com tamanho inválido."
+        );
+        return res.status(400).json({
+          error: "A assinatura tem um valor p256dh ou auth inválido.",
+        });
+      }
+
+      // Preparar a payload da notificação
       const { titulo } = req.body;
       const payload = JSON.stringify({
         title: titulo || "Novo Post!",
@@ -297,15 +314,17 @@ app.post("/sendNotification", async (req, res) => {
         icon: "/path/to/icon.png",
       });
 
+      // Preparar o objeto de assinatura para enviar a notificação
       const subscriptionObject = {
         endpoint: subscription.endpoint,
         keys: {
-          p256dh: keys.p256dh, // Use a chave p256dh decodificada
-          auth: keys.auth, // Use a chave auth decodificada
+          p256dh: keys.p256dh, // Passar as chaves como string base64
+          auth: keys.auth, // Passar as chaves como string base64
         },
       };
 
       try {
+        // Enviar a notificação push
         await sendNotification(subscriptionObject, payload);
         console.log("Notificação push enviada com sucesso!");
         res.status(200).json({ message: "Notificação enviada com sucesso!" });
