@@ -278,13 +278,18 @@ app.post("/sendNotification", async (req, res) => {
   try {
     const subscription = await prisma.subscription.findFirst();
     if (subscription) {
-      const p256dh = Buffer.from(subscription.p256dh, "base64");
-      const auth = Buffer.from(subscription.auth, "base64");
+      // Recuperar os dados do banco
+      console.log("Chaves recuperadas do banco:");
+      console.log("p256dh do banco:", subscription.p256dh);
+      console.log("auth do banco:", subscription.auth);
 
-      console.log(
-        "Assinatura encontrada para envio de notificação:",
-        subscription
-      );
+      // Decodificar as chaves p256dh e auth
+      const p256dhBuffer = Buffer.from(subscription.p256dh, "base64");
+      const authBuffer = Buffer.from(subscription.auth, "base64");
+
+      console.log("Tamanhos das chaves decodificadas:");
+      console.log("Tamanho de p256dh:", p256dhBuffer.length);
+      console.log("Tamanho de auth:", authBuffer.length);
 
       const { titulo } = req.body;
       const payload = JSON.stringify({
@@ -296,8 +301,8 @@ app.post("/sendNotification", async (req, res) => {
       const subscriptionObject = {
         endpoint: subscription.endpoint,
         keys: {
-          p256dh: subscription.p256dh,
-          auth: subscription.auth,
+          p256dh: subscription.p256dh, // Use a chave p256dh
+          auth: subscription.auth, // Use a chave auth
         },
       };
 
@@ -321,9 +326,18 @@ app.post("/sendNotification", async (req, res) => {
 app.post("/subscribe", async (req, res) => {
   const { endpoint, keys } = req.body;
 
+  // Logando as chaves recebidas para debug
+  console.log("Chaves recebidas do cliente:");
+  console.log("p256dh:", keys.p256dh);
+  console.log("auth:", keys.auth);
+
   // Valida as chaves de assinatura
   const p256dhBuffer = Buffer.from(keys.p256dh, "base64");
   const authBuffer = Buffer.from(keys.auth, "base64");
+
+  console.log("Tamanhos das chaves:");
+  console.log("Tamanho de p256dh:", p256dhBuffer.length);
+  console.log("Tamanho de auth:", authBuffer.length);
 
   if (p256dhBuffer.length !== 65 || authBuffer.length !== 16) {
     console.error("Chaves p256dh ou auth têm o comprimento incorreto.");
@@ -341,7 +355,11 @@ app.post("/subscribe", async (req, res) => {
       },
     });
 
-    console.log("Assinatura salva com sucesso:", subscription);
+    // Logar o que foi armazenado
+    console.log("Assinatura armazenada no banco de dados:");
+    console.log("p256dh armazenado:", subscription.p256dh);
+    console.log("auth armazenado:", subscription.auth);
+
     res.status(201).json({ message: "Assinatura salva com sucesso." });
   } catch (error) {
     console.error("Erro ao salvar assinatura:", error);
