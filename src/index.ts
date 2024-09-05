@@ -304,35 +304,36 @@ app.post("/sendNotification", async (req, res) => {
 });
 
 app.post("/subscribe", async (req, res) => {
-  const { endpoint, keys, expirationTime } = req.body;
+  const { endpoint, keys } = req.body;
 
-  // Valida o comprimento do p256dh ao receber a assinatura
-  if (Buffer.from(keys.p256dh, "base64").length !== 65) {
-    console.error("O valor p256dh da assinatura recebido não tem 65 bytes.");
-    return res
-      .status(400)
-      .json({ error: "A assinatura tem um valor p256dh inválido." });
+  if (!endpoint || !keys || !keys.p256dh || !keys.auth) {
+    return res.status(400).json({ error: "Assinatura inválida." });
   }
 
   try {
+    // Verifique o tamanho das chaves antes de armazená-las
+    if (
+      Buffer.from(keys.p256dh, "base64").length !== 65 ||
+      Buffer.from(keys.auth, "base64").length !== 16
+    ) {
+      return res.status(400).json({ error: "Chaves de assinatura inválidas." });
+    }
+
     const savedSubscription = await prisma.subscription.create({
       data: {
         endpoint: endpoint,
         p256dh: keys.p256dh,
         auth: keys.auth,
-        expirationTime: expirationTime ? new Date(expirationTime) : null,
-        keys: JSON.stringify(keys),
+        keys: JSON.stringify(keys), // Inclua as chaves como JSON
       },
     });
 
-    console.log(
-      "Assinatura salva com sucesso no banco de dados:",
-      savedSubscription
-    );
+    console.log("Assinatura salva no servidor:", savedSubscription);
+
     res.status(201).send(savedSubscription);
   } catch (error) {
-    console.error("Erro ao criar assinatura:", error);
-    res.status(500).send("Erro ao criar assinatura");
+    console.error("Erro ao salvar assinatura:", error);
+    res.status(500).send("Erro ao salvar assinatura");
   }
 });
 
