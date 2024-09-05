@@ -277,29 +277,40 @@ app.post("/sendNotification", async (req, res) => {
 
   try {
     const subscription = await prisma.subscription.findFirst();
-    if (subscription) {
-      console.log("Chaves recuperadas do banco:");
-      console.log("p256dh do banco (base64):", subscription.p256dh);
-      console.log("auth do banco (base64):", subscription.auth);
 
-      // Decodifique as chaves para o formato correto
-      const p256dh = Buffer.from(subscription.p256dh, "base64");
-      const auth = Buffer.from(subscription.auth, "base64");
+    if (subscription) {
+      // Logando as chaves recuperadas diretamente do banco
+      console.log("Chaves recuperadas diretamente do banco:");
+      console.log("p256dh (base64, direto do banco):", subscription.p256dh);
+      console.log("auth (base64, direto do banco):", subscription.auth);
+
+      // Tentando acessar os valores diretamente sem Buffer para ver se eles estão truncados
+      const p256dhDirect = subscription.p256dh;
+      const authDirect = subscription.auth;
+
+      console.log("Valores recuperados diretamente (sem decodificar):");
+      console.log("p256dh direto:", p256dhDirect);
+      console.log("auth direto:", authDirect);
+      console.log("Tamanho p256dh direto:", p256dhDirect.length);
+      console.log("Tamanho auth direto:", authDirect.length);
+
+      // Decodificando as chaves para o formato binário
+      const p256dhDecoded = Buffer.from(subscription.p256dh, "base64");
+      const authDecoded = Buffer.from(subscription.auth, "base64");
 
       console.log("Tamanhos das chaves decodificadas:");
-      console.log("Tamanho de p256dh:", p256dh.length);
-      console.log("Tamanho de auth:", auth.length);
+      console.log("Tamanho de p256dh decodificado:", p256dhDecoded.length);
+      console.log("Tamanho de auth decodificado:", authDecoded.length);
 
-      // Verifica se os tamanhos são válidos
-      if (p256dh.length !== 65 || auth.length !== 16) {
-        console.error(
-          "O valor p256dh ou auth da assinatura está com tamanho inválido."
-        );
+      // Verificando se os tamanhos decodificados são corretos
+      if (p256dhDecoded.length !== 65 || authDecoded.length !== 16) {
+        console.error("Chaves com tamanho inválido após decodificação.");
         return res
           .status(400)
-          .json({ error: "A assinatura tem chaves com tamanho inválido." });
+          .json({ error: "Chaves com tamanho inválido após decodificação." });
       }
 
+      // Preparar o payload para enviar a notificação
       const { titulo } = req.body;
       const payload = JSON.stringify({
         title: titulo || "Novo Post!",
@@ -310,8 +321,8 @@ app.post("/sendNotification", async (req, res) => {
       const subscriptionObject = {
         endpoint: subscription.endpoint,
         keys: {
-          p256dh: subscription.p256dh, // Use a chave p256dh completa
-          auth: subscription.auth, // Use a chave auth completa
+          p256dh: subscription.p256dh, // Usar o valor original base64
+          auth: subscription.auth, // Usar o valor original base64
         },
       };
 
@@ -324,6 +335,7 @@ app.post("/sendNotification", async (req, res) => {
         res.status(500).json({ error: "Erro ao enviar notificação push" });
       }
     } else {
+      console.error("Nenhuma assinatura encontrada.");
       res.status(404).json({ error: "Nenhuma assinatura encontrada" });
     }
   } catch (error) {
