@@ -11,8 +11,11 @@ import { sendNotification } from "./notification";
 import authRoutes from "./routes/auth"; // Rotas de autenticação
 import auth from "./middleware/auth"; // Middleware de autenticação
 import { Request, Response } from "express";
+<<<<<<< HEAD
 import * as dotenv from "dotenv";
 dotenv.config();
+=======
+>>>>>>> b45e33c46f10af2e16a8def8b1d85e79ed87a97d
 
 const app = express();
 const server = http.createServer(app);
@@ -47,8 +50,11 @@ const corsOptions = {
   origin: [
     "http://localhost:3000",
     "https://cemear-844a30ef7d3e.herokuapp.com",
+    "https://66d6181f7a08694ac1628268--fantastic-eclair-df8cfe.netlify.app", // Adicione o novo domínio aqui
   ],
   methods: ["GET", "POST"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
 };
 app.use(cors(corsOptions));
 
@@ -57,10 +63,34 @@ const prisma = new PrismaClient({
   log: ["query", "info", "warn", "error"],
 });
 
+<<<<<<< HEAD
 app.use(express.static(path.join(__dirname, "public")));
 
 app.get("/", (req, res) => {
   res.send(`Socket IO iniciou na porta: ${PORT}`);
+=======
+// Criar servidor HTTP
+const server = http.createServer(app);
+
+// Configuração do Socket.IO
+const io = new SocketIOServer(server, {
+  cors: corsOptions, // Usar o mesmo objeto de configuração de CORS
+  path: "/socket.io", // Certifique-se de que o caminho esteja correto
+});
+
+io.on("connection", (socket) => {
+  console.log("user connected");
+  socket.on("message", (ms) => {
+    io.emit("message", ms);
+  });
+>>>>>>> b45e33c46f10af2e16a8def8b1d85e79ed87a97d
+});
+
+app.use(express.static(path.join(__dirname, "public")));
+
+app.get("/", (req, res) => {
+  res.write(`Socket.IO iniciou na porta: ${PORT}`);
+  res.end();
 });
 
 // Configuração do multer
@@ -149,7 +179,7 @@ app.post("/upload", upload.single("file"), async (req, res) => {
 app.get("/download/:id", async (req, res) => {
   try {
     const file = await prisma.file.findUnique({
-      where: { id: req.params.id }, // Não precisa converter para int
+      where: { id: req.params.id },
     });
 
     if (!file) return res.status(404).send("Arquivo não encontrado");
@@ -181,7 +211,6 @@ app.post("/posts", async (req, res) => {
 
   io.emit("new-post");
 
-  // Envia a notificação para o sistema operacional
   notifier.notify({
     title: "Novo Post",
     message: `Novo post: ${titulo}`,
@@ -189,7 +218,6 @@ app.post("/posts", async (req, res) => {
     wait: true,
   });
 
-  // Obtenha a assinatura do banco de dados
   const subscription = await prisma.subscription.findFirst();
   const payload = JSON.stringify({
     title: titulo,
@@ -213,7 +241,7 @@ app.post("/posts", async (req, res) => {
       console.error("Erro ao enviar notificação push", error);
     }
   } else {
-    console.error("nenhuma assinatura encontrada no banco de dados.");
+    console.error("Nenhuma assinatura encontrada no banco de dados.");
   }
 
   res.status(201).json(post);
@@ -251,7 +279,6 @@ app.post("/sendNotification", async (req, res) => {
   }
 });
 
-// Endpoint para salvar uma assinatura
 app.post("/subscribe", async (req, res) => {
   const { endpoint, keys, expirationTime } = req.body;
 
@@ -273,7 +300,6 @@ app.post("/subscribe", async (req, res) => {
   }
 });
 
-// Endpoint para obter assinaturas (para fins de administração ou teste)
 app.get("/subscriptions", async (req, res) => {
   try {
     const subscriptions = await prisma.subscription.findMany();
@@ -315,10 +341,8 @@ app.post("/events", async (req, res) => {
   }
 });
 
-// Configurar rotas de autenticação
 app.use("/auth", authRoutes);
 
-// Adicionar rota protegida para teste
 app.get("/protected", auth, (req, res) => {
   res.send("Você está acessando uma rota protegida!");
 });
@@ -347,11 +371,17 @@ app.get("/userTipoUsuario", auth, async (req: Request, res: Response) => {
   }
 });
 
+<<<<<<< HEAD
 // Configure o servidor para escutar na porta fornecida pelo Heroku ou na porta padrão
 const PORT = process.env.PORT || 3001;
 const DATABASE_URL = process.env.DATABASE_URL;
 console.log(`DATABASE_URL: ${DATABASE_URL}`); // Verificar se o DATABASE_URL está correto
 
+=======
+const PORT = process.env.PORT || 17143;
+
+// Alteração para utilizar o servidor HTTP e o Socket.IO juntos
+>>>>>>> b45e33c46f10af2e16a8def8b1d85e79ed87a97d
 server.listen(PORT, () => {
   console.log(`Servidor iniciado na porta ${PORT}`);
 });
