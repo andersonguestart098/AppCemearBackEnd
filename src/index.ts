@@ -264,18 +264,17 @@ app.post("/sendNotification", async (req, res) => {
   try {
     const subscription = await prisma.subscription.findFirst();
     if (subscription) {
-      console.log("Assinatura encontrada:", subscription);
+      // Recuperar as chaves armazenadas no campo "keys" como JSON
+      const keys = JSON.parse(subscription.keys);
 
-      const p256dh = Buffer.from(subscription.p256dh, "base64");
-      const auth = Buffer.from(subscription.auth, "base64");
+      // Decodificar as chaves p256dh e auth
+      const p256dh = Buffer.from(keys.p256dh, "base64");
+      const auth = Buffer.from(keys.auth, "base64");
 
-      // Validação do tamanho das chaves
-      if (p256dh.length !== 65 || auth.length !== 16) {
-        console.error("Chaves recuperadas têm tamanhos inválidos.");
-        return res
-          .status(400)
-          .json({ error: "Chaves de assinatura inválidas." });
-      }
+      console.log(
+        "Assinatura encontrada para envio de notificação:",
+        subscription
+      );
 
       const { titulo } = req.body;
       const payload = JSON.stringify({
@@ -287,8 +286,8 @@ app.post("/sendNotification", async (req, res) => {
       const subscriptionObject = {
         endpoint: subscription.endpoint,
         keys: {
-          p256dh: subscription.p256dh,
-          auth: subscription.auth,
+          p256dh: keys.p256dh, // Use a chave p256dh decodificada
+          auth: keys.auth, // Use a chave auth decodificada
         },
       };
 
@@ -301,8 +300,7 @@ app.post("/sendNotification", async (req, res) => {
         res.status(500).json({ error: "Erro ao enviar notificação push" });
       }
     } else {
-      console.error("Nenhuma assinatura encontrada.");
-      res.status(404).json({ error: "Nenhuma assinatura encontrada." });
+      res.status(404).json({ error: "Nenhuma assinatura encontrada" });
     }
   } catch (error) {
     console.error("Erro ao buscar assinatura:", error);
