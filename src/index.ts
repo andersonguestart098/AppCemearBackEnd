@@ -222,11 +222,17 @@ app.post("/posts", async (req, res) => {
     });
     console.log("Notificação local enviada via notifier");
 
-    // Recuperando assinatura do banco de dados
-    const subscription = await prisma.subscription.findFirst();
+    // Recuperando a assinatura mais recente do banco de dados
+    const [subscription] = await prisma.subscription.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 1, // Pegamos a assinatura mais recente
+    });
 
     if (subscription) {
-      console.log("Assinatura encontrada no banco de dados:", subscription);
+      console.log(
+        "Assinatura mais recente encontrada no banco de dados:",
+        subscription
+      );
 
       // Conversão das chaves para Buffer
       const p256dhBuffer = Buffer.from(subscription.p256dh, "base64");
