@@ -279,8 +279,8 @@ app.post("/sendNotification", async (req, res) => {
     const subscription = await prisma.subscription.findFirst();
     if (subscription) {
       console.log("Chaves recuperadas do banco:");
-      console.log("p256dh do banco:", subscription.p256dh);
-      console.log("auth do banco:", subscription.auth);
+      console.log("p256dh do banco (base64):", subscription.p256dh);
+      console.log("auth do banco (base64):", subscription.auth);
 
       // Decodifique as chaves para o formato correto
       const p256dh = Buffer.from(subscription.p256dh, "base64");
@@ -290,6 +290,7 @@ app.post("/sendNotification", async (req, res) => {
       console.log("Tamanho de p256dh:", p256dh.length);
       console.log("Tamanho de auth:", auth.length);
 
+      // Verifica se os tamanhos são válidos
       if (p256dh.length !== 65 || auth.length !== 16) {
         console.error(
           "O valor p256dh ou auth da assinatura está com tamanho inválido."
