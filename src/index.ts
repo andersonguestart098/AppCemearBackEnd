@@ -246,7 +246,7 @@ app.post("/posts", async (req, res) => {
       });
 
       // Itera sobre assinaturas únicas e envia a notificação para cada uma
-      uniqueSubscriptions.forEach(async (subscription) => {
+      for (const subscription of uniqueSubscriptions) {
         try {
           const subscriptionObject = {
             endpoint: subscription.endpoint,
@@ -262,9 +262,20 @@ app.post("/posts", async (req, res) => {
             `Notificação push enviada com sucesso para ${subscription.endpoint}`
           );
         } catch (error) {
-          console.error("Erro ao enviar notificação push", error);
+          console.error(
+            `Erro ao enviar notificação push para ${subscription.endpoint}`,
+            error
+          );
+
+          // Caso a notificação falhe (usuário inativo, por exemplo), remover a assinatura
+          await prisma.subscription.delete({
+            where: { id: subscription.id },
+          });
+          console.log(
+            `Assinatura ${subscription.endpoint} removida do banco de dados`
+          );
         }
-      });
+      }
     } else {
       console.error("Nenhuma assinatura encontrada no banco de dados.");
     }
@@ -289,25 +300,6 @@ app.post("/sendNotification", async (req, res) => {
     });
 
     if (subscription) {
-      // Logar as chaves recuperadas
-      console.log("Chaves recuperadas diretamente do banco:");
-      console.log("p256dh (base64, direto do banco):", subscription.p256dh);
-      console.log("auth (base64, direto do banco):", subscription.auth);
-
-      const p256dhDecoded = Buffer.from(subscription.p256dh, "base64");
-      const authDecoded = Buffer.from(subscription.auth, "base64");
-
-      console.log("Tamanhos das chaves decodificadas:");
-      console.log("Tamanho de p256dh decodificado:", p256dhDecoded.length);
-      console.log("Tamanho de auth decodificado:", authDecoded.length);
-
-      if (p256dhDecoded.length !== 65 || authDecoded.length !== 16) {
-        console.error("Chaves com tamanho inválido após decodificação.");
-        return res
-          .status(400)
-          .json({ error: "Chaves com tamanho inválido após decodificação." });
-      }
-
       const { titulo } = req.body;
       const payload = JSON.stringify({
         title: titulo || "Novo Post!",
@@ -318,8 +310,8 @@ app.post("/sendNotification", async (req, res) => {
       const subscriptionObject = {
         endpoint: subscription.endpoint,
         keys: {
-          p256dh: subscription.p256dh, // Usar o valor original base64
-          auth: subscription.auth, // Usar o valor original base64
+          p256dh: subscription.p256dh,
+          auth: subscription.auth,
         },
       };
 
@@ -328,7 +320,17 @@ app.post("/sendNotification", async (req, res) => {
         console.log("Notificação push enviada com sucesso!");
         res.status(200).json({ message: "Notificação enviada com sucesso!" });
       } catch (error) {
-        console.error("Erro ao enviar notificação push", error);
+        console.error(
+          `Erro ao enviar notificação push para ${subscription.endpoint}`,
+          error
+        );
+        // Remover a assinatura em caso de erro
+        await prisma.subscription.delete({
+          where: { id: subscription.id },
+        });
+        console.log(
+          `Assinatura ${subscription.endpoint} removida do banco de dados`
+        );
         res.status(500).json({ error: "Erro ao enviar notificação push" });
       }
     } else {
@@ -344,18 +346,12 @@ app.post("/sendNotification", async (req, res) => {
 app.post("/subscribe", async (req, res) => {
   const { endpoint, keys } = req.body;
 
-  // Logando as chaves recebidas para debug
   console.log("Chaves recebidas do cliente:");
   console.log("p256dh (base64):", keys.p256dh);
   console.log("auth (base64):", keys.auth);
 
-  // Converte as chaves de base64 para binário
   const p256dhBuffer = Buffer.from(keys.p256dh, "base64");
   const authBuffer = Buffer.from(keys.auth, "base64");
-
-  console.log("Tamanhos das chaves:");
-  console.log("Tamanho de p256dh:", p256dhBuffer.length);
-  console.log("Tamanho de auth:", authBuffer.length);
 
   if (p256dhBuffer.length !== 65 || authBuffer.length !== 16) {
     console.error("Chaves p256dh ou auth têm o comprimento incorreto.");
@@ -363,21 +359,27 @@ app.post("/subscribe", async (req, res) => {
   }
 
   try {
-    // Armazena as chaves no banco como base64 (string)
+    // Verificar se já existe uma assinatura com o mesmo endpoint usando findFirst
+    const existingSubscription = await prisma.subscription.findFirst({
+      where: { endpoint },
+    });
+
+    if (existingSubscription) {
+      console.log("Assinatura já existente para este endpoint.");
+      return res.status(200).json({ message: "Assinatura já existe." });
+    }
+
+    // Criação da assinatura, incluindo o campo 'keys'
     const subscription = await prisma.subscription.create({
       data: {
         endpoint,
-        p256dh: keys.p256dh, // Armazena como string base64
-        auth: keys.auth, // Armazena como string base64
-        keys: JSON.stringify(keys), // Opcional: se você ainda quiser armazenar a versão em JSON
+        p256dh: keys.p256dh,
+        auth: keys.auth,
+        keys: JSON.stringify(keys), // Stringificando o JSON para o campo 'keys'
       },
     });
 
-    // Logar o que foi armazenado
-    console.log("Assinatura armazenada no banco de dados:");
-    console.log("p256dh armazenado (base64):", subscription.p256dh);
-    console.log("auth armazenado (base64):", subscription.auth);
-
+    console.log("Assinatura armazenada no banco de dados:", subscription);
     res.status(201).json({ message: "Assinatura salva com sucesso." });
   } catch (error) {
     console.error("Erro ao salvar assinatura:", error);
