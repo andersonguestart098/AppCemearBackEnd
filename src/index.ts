@@ -224,34 +224,13 @@ app.post("/posts", async (req, res) => {
     });
     console.log("Notificação local enviada via notifier");
 
-    // Recuperando a assinatura mais recente do banco de dados
-    const [subscription] = await prisma.subscription.findMany({
+    // Recuperando todas as assinaturas do banco de dados
+    const subscriptions = await prisma.subscription.findMany({
       orderBy: { createdAt: "desc" },
-      take: 1, // Pegamos a assinatura mais recente
     });
 
-    if (subscription) {
-      console.log(
-        "Assinatura mais recente encontrada no banco de dados:",
-        subscription
-      );
-
-      // Conversão das chaves para Buffer
-      const p256dhBuffer = Buffer.from(subscription.p256dh, "base64");
-      const authBuffer = Buffer.from(subscription.auth, "base64");
-
-      console.log("Comprimento de p256dh:", p256dhBuffer.length);
-      console.log("Comprimento de auth:", authBuffer.length);
-
-      // Validação do tamanho das chaves
-      if (p256dhBuffer.length !== 65 || authBuffer.length !== 16) {
-        console.error(
-          "O valor p256dh ou auth da assinatura está com tamanho inválido."
-        );
-        return res.status(400).json({
-          error: "A assinatura tem um valor p256dh ou auth inválido.",
-        });
-      }
+    if (subscriptions.length > 0) {
+      console.log("Assinaturas encontradas no banco de dados:", subscriptions);
 
       // Preparando payload de notificação
       const payload = JSON.stringify({
@@ -260,22 +239,28 @@ app.post("/posts", async (req, res) => {
         icon: "public/icones/logoCE.ico",
       });
 
-      const subscriptionObject = {
-        endpoint: subscription.endpoint,
-        keys: {
-          p256dh: subscription.p256dh,
-          auth: subscription.auth,
-        },
-      };
+      // Itera sobre todas as assinaturas e envia a notificação para cada uma
+      subscriptions.forEach(async (subscription) => {
+        try {
+          const subscriptionObject = {
+            endpoint: subscription.endpoint,
+            keys: {
+              p256dh: subscription.p256dh,
+              auth: subscription.auth,
+            },
+          };
 
-      try {
-        await sendNotification(subscriptionObject, payload);
-        console.log("Notificação push enviada com sucesso!");
-      } catch (error) {
-        console.error("Erro ao enviar notificação push", error);
-      }
+          // Envia a notificação push para cada assinatura
+          await sendNotification(subscriptionObject, payload);
+          console.log(
+            `Notificação push enviada com sucesso para ${subscription.endpoint}`
+          );
+        } catch (error) {
+          console.error("Erro ao enviar notificação push", error);
+        }
+      });
     } else {
-      console.error("Nenhumaaa assinatura encontrada no banco de dados.");
+      console.error("Nenhuma assinatura encontrada no banco de dados.");
     }
 
     // Retorna o post criado com status 201
