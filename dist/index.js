@@ -56,7 +56,8 @@ const io = new socket_io_1.Server(server, {
     cors: {
         origin: [
             "http://localhost:3000",
-            "https://cemear-844a30ef7d3e.herokuapp.com",
+            "https://cemear-b549eb196d7c.herokuapp.com",
+            "https://66db42ff360369d134b83829--radiant-bavarois-04ac1f.netlify.app",
         ],
         methods: ["GET", "POST"],
     },
@@ -75,9 +76,12 @@ app.use(express_1.default.json());
 const corsOptions = {
     origin: [
         "http://localhost:3000",
-        "https://cemear-844a30ef7d3e.herokuapp.com",
+        "https://cemear-b549eb196d7c.herokuapp.com",
+        "https://66db42ff360369d134b83829--radiant-bavarois-04ac1f.netlify.app",
     ],
     methods: ["GET", "POST"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
 };
 app.use((0, cors_1.default)(corsOptions));
 // Inicialização do PrismaClient com logs detalhados
@@ -87,6 +91,11 @@ const prisma = new client_1.PrismaClient({
 app.use(express_1.default.static(path_1.default.join(__dirname, "public")));
 app.get("/", (req, res) => {
     res.send(`Socket IO iniciou na porta: ${PORT}`);
+});
+app.use(express_1.default.static(path_1.default.join(__dirname, "public")));
+app.get("/", (req, res) => {
+    res.write(`Socket.IO iniciou na porta: ${PORT}`);
+    res.end();
 });
 // Configuração do multer
 const storage = multer_1.default.diskStorage({
@@ -162,7 +171,7 @@ app.post("/upload", upload.single("file"), (req, res) => __awaiter(void 0, void 
 app.get("/download/:id", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const file = yield prisma.file.findUnique({
-            where: { id: req.params.id }, // Não precisa converter para int
+            where: { id: req.params.id },
         });
         if (!file)
             return res.status(404).send("Arquivo não encontrado");
@@ -176,7 +185,11 @@ app.get("/download/:id", (req, res) => __awaiter(void 0, void 0, void 0, functio
 app.get("/posts", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         console.log("Iniciando fetch de posts...");
-        const posts = yield prisma.post.findMany();
+        const posts = yield prisma.post.findMany({
+            orderBy: {
+                id: "desc",
+            },
+        });
         console.log("Posts recuperados com sucesso:", posts);
         res.json(posts);
     }
@@ -187,102 +200,165 @@ app.get("/posts", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
 }));
 app.post("/posts", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { conteudo, titulo } = req.body;
-    const post = yield prisma.post.create({
-        data: { conteudo, titulo },
+    console.log("Recebendo nova requisição para criar post:", {
+        conteudo,
+        titulo,
     });
-    io.emit("new-post");
-    // Envia a notificação para o sistema operacional
-    node_notifier_1.default.notify({
-        title: "Novo Post",
-        message: `Novo post: ${titulo}`,
-        sound: true,
-        wait: true,
-    });
-    // Obtenha a assinatura do banco de dados
-    const subscription = yield prisma.subscription.findFirst();
-    const payload = JSON.stringify({
-        title: titulo,
-        body: "Novo Post!",
-        icon: "public/icones/logoCE.ico",
-    });
-    if (subscription) {
-        const subscriptionObject = {
-            endpoint: subscription.endpoint,
-            keys: {
-                p256dh: subscription.p256dh,
-                auth: subscription.auth,
-            },
-        };
-        try {
-            yield (0, notification_1.sendNotification)(subscriptionObject, payload);
-            console.log("Notificação push enviada com sucesso!");
-        }
-        catch (error) {
-            console.error("Erro ao enviar notificação push", error);
-        }
+    if (!conteudo || !titulo) {
+        console.error("Dados de postagem inválidos: conteúdo ou título faltando");
+        return res.status(400).json({
+            error: "Conteúdo e título são obrigatórios.",
+        });
     }
-    else {
-        console.error("nenhuma assinatura encontrada no banco de dados.");
+    try {
+        // Criação do post no banco de dados
+        const post = yield prisma.post.create({
+            data: { conteudo, titulo },
+        });
+        console.log("Post criado com sucesso:", post);
+        // Emitindo o evento para o Socket.IO
+        io.emit("new-post");
+        console.log("Emitindo evento de novo post via Socket.IO");
+        // Enviando notificação local
+        node_notifier_1.default.notify({
+            title: "Novo Post",
+            message: `Novo post: ${titulo}`,
+            sound: true,
+            wait: true,
+        });
+        console.log("Notificação local enviada via notifier");
+        // Recuperando todas as assinaturas do banco de dados
+        const subscriptions = yield prisma.subscription.findMany({
+            orderBy: { createdAt: "desc" },
+        });
+        if (subscriptions.length > 0) {
+            console.log("Assinaturas encontradas no banco de dados:", subscriptions);
+            // Filtra assinaturas únicas pelo campo 'endpoint'
+            const uniqueSubscriptions = subscriptions.filter((value, index, self) => index === self.findIndex((t) => t.endpoint === value.endpoint));
+            // Preparando payload de notificação
+            const payload = JSON.stringify({
+                title: titulo,
+                body: "Novo Post!",
+                icon: "public/icones/logoCE.ico",
+            });
+            // Itera sobre assinaturas únicas e envia a notificação para cada uma
+            for (const subscription of uniqueSubscriptions) {
+                try {
+                    const subscriptionObject = {
+                        endpoint: subscription.endpoint,
+                        keys: {
+                            p256dh: subscription.p256dh,
+                            auth: subscription.auth,
+                        },
+                    };
+                    // Envia a notificação push para cada assinatura única
+                    yield (0, notification_1.sendNotification)(subscriptionObject, payload);
+                    console.log(`Notificação push enviada com sucesso para ${subscription.endpoint}`);
+                }
+                catch (error) {
+                    console.error(`Erro ao enviar notificação push para ${subscription.endpoint}`, error);
+                    // Caso a notificação falhe (usuário inativo, por exemplo), remover a assinatura
+                    yield prisma.subscription.delete({
+                        where: { id: subscription.id },
+                    });
+                    console.log(`Assinatura ${subscription.endpoint} removida do banco de dados`);
+                }
+            }
+        }
+        else {
+            console.error("Nenhuma assinatura encontrada no banco de dados.");
+        }
+        // Retorna o post criado com status 201
+        return res.status(201).json(post);
     }
-    res.status(201).json(post);
+    catch (error) {
+        console.error("Erro ao criar post:", error);
+        return res.status(500).json({ error: "Erro ao criar post" });
+    }
 }));
 app.post("/sendNotification", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const subscription = yield prisma.subscription.findFirst();
-    if (!subscription) {
-        return res.status(404).json({ error: "Nenhuma assinatura encontrada." });
-    }
-    const { titulo } = req.body;
-    const payload = JSON.stringify({
-        title: titulo || "Novo Post!",
-        body: `Um novo post foi criado com o título: ${titulo}`,
-        icon: "/path/to/icon.png",
-    });
-    const subscriptionObject = {
-        endpoint: subscription.endpoint,
-        keys: {
-            p256dh: subscription.p256dh,
-            auth: subscription.auth,
-        },
-    };
+    console.log("Recebendo requisição para enviar notificação");
     try {
-        yield (0, notification_1.sendNotification)(subscriptionObject, payload);
-        console.log("Notificação push enviada com sucesso!");
-        res.status(200).json({ message: "Notificação enviada com sucesso!" });
-    }
-    catch (error) {
-        console.error("Erro ao enviar notificação push", error);
-        res.status(500).json({ error: "Erro ao enviar notificação push" });
-    }
-}));
-// Endpoint para salvar uma assinatura
-app.post("/subscribe", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { endpoint, keys, expirationTime } = req.body;
-    try {
-        const savedSubscription = yield prisma.subscription.create({
-            data: {
-                endpoint: endpoint,
-                p256dh: keys.p256dh,
-                auth: keys.auth,
-                expirationTime: expirationTime ? new Date(expirationTime) : null,
-                keys: JSON.stringify(keys),
+        // Ajuste a consulta para buscar a assinatura mais recente
+        const subscription = yield prisma.subscription.findFirst({
+            orderBy: {
+                createdAt: "desc", // Ordena pela data de criação para pegar a assinatura mais recente
             },
         });
-        res.status(201).send(savedSubscription);
+        if (subscription) {
+            const { titulo } = req.body;
+            const payload = JSON.stringify({
+                title: titulo || "Novo Post!",
+                body: `Um novo post foi criado com o título: ${titulo}`,
+                icon: "/path/to/icon.png",
+            });
+            const subscriptionObject = {
+                endpoint: subscription.endpoint,
+                keys: {
+                    p256dh: subscription.p256dh,
+                    auth: subscription.auth,
+                },
+            };
+            try {
+                yield (0, notification_1.sendNotification)(subscriptionObject, payload);
+                console.log("Notificação push enviada com sucesso!");
+                res.status(200).json({ message: "Notificação enviada com sucesso!" });
+            }
+            catch (error) {
+                console.error(`Erro ao enviar notificação push para ${subscription.endpoint}`, error);
+                // Remover a assinatura em caso de erro
+                yield prisma.subscription.delete({
+                    where: { id: subscription.id },
+                });
+                console.log(`Assinatura ${subscription.endpoint} removida do banco de dados`);
+                res.status(500).json({ error: "Erro ao enviar notificação push" });
+            }
+        }
+        else {
+            console.error("Nenhuma assinatura encontrada.");
+            res.status(404).json({ error: "Nenhuma assinatura encontrada" });
+        }
     }
     catch (error) {
-        console.error("Erro ao criar assinatura:", error);
-        res.status(500).send("Erro ao criar assinatura");
+        console.error("Erro ao buscar assinatura:", error);
+        res.status(500).json({ error: "Erro ao buscar assinatura" });
     }
 }));
-// Endpoint para obter assinaturas (para fins de administração ou teste)
-app.get("/subscriptions", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+app.post("/subscribe", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { endpoint, keys } = req.body;
+    console.log("Chaves recebidas do cliente:");
+    console.log("p256dh (base64):", keys.p256dh);
+    console.log("auth (base64):", keys.auth);
+    const p256dhBuffer = Buffer.from(keys.p256dh, "base64");
+    const authBuffer = Buffer.from(keys.auth, "base64");
+    if (p256dhBuffer.length !== 65 || authBuffer.length !== 16) {
+        console.error("Chaves p256dh ou auth têm o comprimento incorreto.");
+        return res.status(400).json({ error: "Chaves de assinatura inválidas." });
+    }
     try {
-        const subscriptions = yield prisma.subscription.findMany();
-        res.json(subscriptions);
+        // Verificar se já existe uma assinatura com o mesmo endpoint usando findFirst
+        const existingSubscription = yield prisma.subscription.findFirst({
+            where: { endpoint },
+        });
+        if (existingSubscription) {
+            console.log("Assinatura já existente para este endpoint.");
+            return res.status(200).json({ message: "Assinatura já existe." });
+        }
+        // Criação da assinatura, incluindo o campo 'keys'
+        const subscription = yield prisma.subscription.create({
+            data: {
+                endpoint,
+                p256dh: keys.p256dh,
+                auth: keys.auth,
+                keys: JSON.stringify(keys), // Stringificando o JSON para o campo 'keys'
+            },
+        });
+        console.log("Assinatura armazenada no banco de dados:", subscription);
+        res.status(201).json({ message: "Assinatura salva com sucesso." });
     }
     catch (error) {
-        console.error("Erro ao obter assinaturas:", error);
-        res.status(500).send("Erro ao obter assinaturas");
+        console.error("Erro ao salvar assinatura:", error);
+        res.status(500).json({ error: "Erro ao salvar assinatura" });
     }
 }));
 app.get("/events", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -312,9 +388,7 @@ app.post("/events", (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         res.status(500).send("Erro ao criar evento");
     }
 }));
-// Configurar rotas de autenticação
 app.use("/auth", auth_1.default);
-// Adicionar rota protegida para teste
 app.get("/protected", auth_2.default, (req, res) => {
     res.send("Você está acessando uma rota protegida!");
 });
