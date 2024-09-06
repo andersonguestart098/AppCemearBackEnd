@@ -232,6 +232,12 @@ app.post("/posts", async (req, res) => {
     if (subscriptions.length > 0) {
       console.log("Assinaturas encontradas no banco de dados:", subscriptions);
 
+      // Filtra assinaturas únicas pelo campo 'endpoint'
+      const uniqueSubscriptions = subscriptions.filter(
+        (value, index, self) =>
+          index === self.findIndex((t) => t.endpoint === value.endpoint)
+      );
+
       // Preparando payload de notificação
       const payload = JSON.stringify({
         title: titulo,
@@ -239,8 +245,8 @@ app.post("/posts", async (req, res) => {
         icon: "public/icones/logoCE.ico",
       });
 
-      // Itera sobre todas as assinaturas e envia a notificação para cada uma
-      subscriptions.forEach(async (subscription) => {
+      // Itera sobre assinaturas únicas e envia a notificação para cada uma
+      uniqueSubscriptions.forEach(async (subscription) => {
         try {
           const subscriptionObject = {
             endpoint: subscription.endpoint,
@@ -250,7 +256,7 @@ app.post("/posts", async (req, res) => {
             },
           };
 
-          // Envia a notificação push para cada assinatura
+          // Envia a notificação push para cada assinatura única
           await sendNotification(subscriptionObject, payload);
           console.log(
             `Notificação push enviada com sucesso para ${subscription.endpoint}`
