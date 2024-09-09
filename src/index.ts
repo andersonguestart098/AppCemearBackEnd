@@ -50,6 +50,7 @@ const corsOptions = {
     "http://localhost:3000",
     "https://cemear-b549eb196d7c.herokuapp.com",
     "https://66db5d68366cdea0d403f353--dreamy-faloodeh-61888b.netlify.app",
+    "https://app-cemear-front-ha75vo416-andersonguestart098s-projects.vercel.app",
   ],
   methods: ["GET", "POST"],
   allowedHeaders: ["Content-Type", "Authorization"],
