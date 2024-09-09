@@ -24,6 +24,7 @@ const io = new SocketIOServer(server, {
       "http://localhost:3000",
       "https://cemear-b549eb196d7c.herokuapp.com",
       "https://66db5d68366cdea0d403f353--dreamy-faloodeh-61888b.netlify.app",
+      "https://app-cemear-front-end.vercel.app",
     ],
     methods: ["GET", "POST"],
   },
