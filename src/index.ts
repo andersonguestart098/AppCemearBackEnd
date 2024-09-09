@@ -26,7 +26,7 @@ const io = new SocketIOServer(server, {
       "https://66db5d68366cdea0d403f353--dreamy-faloodeh-61888b.netlify.app",
       "https://app-cemear-front-4hcpidpnj-andersonguestart098s-projects.vercel.app",
     ],
-    methods: ["GET", "POST"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   },
   path: "/socket.io",
 });
@@ -52,7 +52,7 @@ const corsOptions = {
     "https://66db5d68366cdea0d403f353--dreamy-faloodeh-61888b.netlify.app",
     "https://app-cemear-front-4hcpidpnj-andersonguestart098s-projects.vercel.app",
   ],
-  methods: ["GET", "POST"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
 };
@@ -287,6 +287,42 @@ app.post("/posts", async (req, res) => {
   } catch (error) {
     console.error("Erro ao criar post:", error);
     return res.status(500).json({ error: "Erro ao criar post" });
+  }
+});
+
+app.put("/posts/:id", async (req, res) => {
+  const { id } = req.params;
+  const { titulo, conteudo } = req.body;
+
+  try {
+    const updatedPost = await prisma.post.update({
+      where: { id: String(id) },
+      data: { titulo, conteudo },
+    });
+
+    res.json(updatedPost);
+  } catch (error) {
+    console.error("Erro ao editar post:", error);
+    res.status(500).json({ error: "Erro ao editar post" });
+  }
+});
+
+// Rota para deletar um post (sem autenticação)
+app.delete("/posts/:id", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    await prisma.post.delete({
+      where: { id: String(id) },
+    });
+
+    // Emite o evento de deleção para o frontend via WebSocket
+    io.emit("post-deleted", id);
+
+    res.status(204).send();
+  } catch (error) {
+    console.error("Erro ao deletar post:", error);
+    res.status(500).json({ error: "Erro ao deletar post" });
   }
 });
 
