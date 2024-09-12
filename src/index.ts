@@ -84,11 +84,13 @@ cloudinary.config({
 // Configuração do Multer para Cloudinary para postagens
 const postStorage = new CloudinaryStorage({
   cloudinary: cloudinary,
-  params: async (req, file) => ({
-    folder: "posts", // Pasta no Cloudinary para posts
-    format: "png", // Formato das imagens
-    public_id: Date.now().toString(), // Nome único baseado no timestamp
-  }),
+  params: async (req, file) => {
+    return {
+      folder: "posts", // Pasta no Cloudinary para posts
+      format: "png", // Formato das imagens
+      public_id: Date.now().toString(), // Nome único baseado no timestamp
+    };
+  },
 });
 const postUpload = multer({ storage: postStorage });
 
@@ -103,12 +105,26 @@ const uploadStorage = new CloudinaryStorage({
 });
 const upload = multer({ storage: uploadStorage });
 
+const validateCloudinaryUrl = (url) => {
+  if (url && url.startsWith("https://res.cloudinary.com")) {
+    return url;
+  }
+  console.error(`URL inválido do Cloudinary: ${url}`);
+  return null;
+};
+
 // Rota para criação de posts com Cloudinary
 app.post("/posts", postUpload.single("image"), async (req, res) => {
   const { conteudo, titulo } = req.body;
 
-  // Use o secure_url do Cloudinary para pegar a URL correta da imagem
-  const imageUrl = req.file ? (req.file as any).path : null; // Ajuste para o TypeScript
+  // Log do arquivo de imagem recebido
+  console.log("Imagem recebida: ", req.file);
+
+  // Usando o secure_url do Cloudinary para pegar a URL correta da imagem
+  const imageUrl = req.file ? validateCloudinaryUrl(req.file.path) : null;
+
+  // Log para verificar o URL da imagem
+  console.log("URL da imagem: ", imageUrl);
 
   if (!conteudo || !titulo) {
     return res.status(400).json({
