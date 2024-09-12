@@ -92,7 +92,6 @@ const postStorage = new CloudinaryStorage({
     };
   },
 });
-const postUpload = multer({ storage: postStorage });
 
 // Configuração do Multer para Cloudinary para uploads gerais
 const uploadStorage = new CloudinaryStorage({
@@ -103,7 +102,22 @@ const uploadStorage = new CloudinaryStorage({
     public_id: Date.now().toString(), // Nome único baseado no timestamp
   }),
 });
-const upload = multer({ storage: uploadStorage });
+
+// Configuração do multer com limite de tamanho de arquivo
+const upload = multer({
+  storage: uploadStorage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // Limite de 10MB (ajuste conforme necessário)
+  },
+});
+
+// Configuração para postagens com limite de 10MB
+const postUpload = multer({
+  storage: postStorage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // Limite de 10MB (ajuste conforme necessário)
+  },
+});
 
 const validateCloudinaryUrl = (url) => {
   if (url && url.startsWith("https://res.cloudinary.com")) {
