@@ -7,11 +7,11 @@ generator client {
   provider = "prisma-client-js"
 }
 
-
 model Post {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
   titulo      String
   conteudo    String
+  imagePath   String? // Novo campo adicionado para armazenar o caminho da imagem
   created_at  DateTime @default(now())
 }
 

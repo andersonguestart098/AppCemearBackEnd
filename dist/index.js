@@ -57,9 +57,10 @@ const io = new socket_io_1.Server(server, {
         origin: [
             "http://localhost:3000",
             "https://cemear-b549eb196d7c.herokuapp.com",
-            "https://66db42ff360369d134b83829--radiant-bavarois-04ac1f.netlify.app",
+            "https://66db5d68366cdea0d403f353--dreamy-faloodeh-61888b.netlify.app",
+            "https://app-cemear-front-end-qvgs-kvxi7xb61.vercel.app",
         ],
-        methods: ["GET", "POST"],
+        methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     },
     path: "/socket.io",
 });
@@ -77,9 +78,10 @@ const corsOptions = {
     origin: [
         "http://localhost:3000",
         "https://cemear-b549eb196d7c.herokuapp.com",
-        "https://66db42ff360369d134b83829--radiant-bavarois-04ac1f.netlify.app",
+        "https://66db5d68366cdea0d403f353--dreamy-faloodeh-61888b.netlify.app",
+        "https://app-cemear-front-end-qvgs-kvxi7xb61.vercel.app",
     ],
-    methods: ["GET", "POST"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
 };
@@ -274,6 +276,37 @@ app.post("/posts", (req, res) => __awaiter(void 0, void 0, void 0, function* () 
     catch (error) {
         console.error("Erro ao criar post:", error);
         return res.status(500).json({ error: "Erro ao criar post" });
+    }
+}));
+app.put("/posts/:id", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { id } = req.params;
+    const { titulo, conteudo } = req.body;
+    try {
+        const updatedPost = yield prisma.post.update({
+            where: { id: String(id) },
+            data: { titulo, conteudo },
+        });
+        res.json(updatedPost);
+    }
+    catch (error) {
+        console.error("Erro ao editar post:", error);
+        res.status(500).json({ error: "Erro ao editar post" });
+    }
+}));
+// Rota para deletar um post (sem autenticação)
+app.delete("/posts/:id", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { id } = req.params;
+    try {
+        yield prisma.post.delete({
+            where: { id: String(id) },
+        });
+        // Emite o evento de deleção para o frontend via WebSocket
+        io.emit("post-deleted", id);
+        res.status(204).send();
+    }
+    catch (error) {
+        console.error("Erro ao deletar post:", error);
+        res.status(500).json({ error: "Erro ao deletar post" });
     }
 }));
 app.post("/sendNotification", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
