@@ -189,6 +189,14 @@ app.get("/posts", async (req, res) => {
   }
 });
 
+// Verificar e criar diretório de uploads
+const postsUploadDir = path.join(__dirname, "uploads/posts");
+
+if (!fs.existsSync(postsUploadDir)) {
+  fs.mkdirSync(postsUploadDir, { recursive: true });
+  console.log("Diretório de uploads de posts criado:", postsUploadDir);
+}
+
 const postStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, "uploads/posts/"); // Pasta específica para uploads de imagens de posts
@@ -255,7 +263,9 @@ app.post("/posts", postUpload.single("image"), async (req, res) => {
     return res.status(201).json(post);
   } catch (error) {
     console.error("Erro ao criar post:", error);
-    return res.status(500).json({ error: "Erro ao criar post" });
+    return res
+      .status(500)
+      .json({ error: "Erro ao criar post: " + error.message });
   }
 });
 
