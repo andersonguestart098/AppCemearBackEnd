@@ -86,11 +86,8 @@ const postStorage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: async (req, file) => {
     return {
-      folder: "posts", // Pasta no Cloudinary para posts
-      format: async () => {
-        const ext = path.extname(file.originalname).slice(1);
-        return ext === "jpg" ? "jpeg" : ext; // Converte 'jpg' para 'jpeg' no Cloudinary
-      },
+      folder: "posts",
+      allowed_formats: ["jpeg", "png", "jpg", "gif", "webp"], // Tipos de formatos suportados
       public_id: Date.now().toString(), // Nome único baseado no timestamp
     };
   },
