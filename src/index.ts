@@ -12,9 +12,6 @@ import authRoutes from "./routes/auth"; // Rotas de autenticação
 import auth from "./middleware/auth"; // Middleware de autenticação
 import { Request, Response } from "express";
 import * as dotenv from "dotenv";
-import { v2 as cloudinary } from "cloudinary";
-import { CloudinaryStorage } from "multer-storage-cloudinary";
-
 dotenv.config();
 
 const app = express();
@@ -26,7 +23,7 @@ const io = new SocketIOServer(server, {
     origin: [
       "http://localhost:3000",
       "https://cemear-b549eb196d7c.herokuapp.com",
-      "https://cemear-490jtlved-andersonguestart098s-projects.vercel.app",
+      "https://66da07a725d2d96ba6e87ec7--lucky-vacherin-fc35fb.netlify.app/login",
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   },
@@ -52,7 +49,6 @@ const corsOptions = {
     "http://localhost:3000",
     "https://cemear-b549eb196d7c.herokuapp.com",
     "https://66da07a725d2d96ba6e87ec7--lucky-vacherin-fc35fb.netlify.app/login",
-    "https://cemear-490jtlved-andersonguestart098s-projects.vercel.app",
   ],
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
@@ -78,37 +74,164 @@ app.get("/", (req, res) => {
   res.end();
 });
 
-// Configurando o Cloudinary com suas credenciais
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME, // Pegue essas informações do seu dashboard do Cloudinary
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
+// Configuração do multer
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, "uploads/"),
+  filename: (req, file, cb) =>
+    cb(null, Date.now() + path.extname(file.originalname)),
 });
 
-// Configurando o storage para o Multer usando Cloudinary
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: async (req, file) => ({
-    folder: "posts", // Nome da pasta onde você quer salvar as imagens no Cloudinary
-    format: "png", // Formato das imagens
-    public_id: file.originalname.split(".")[0], // Definindo o ID baseado no nome do arquivo original
-  }),
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const filetypes = /jpeg|jpg|png|pdf/;
+    const extname = filetypes.test(
+      path.extname(file.originalname).toLowerCase()
+    );
+    const mimetype = filetypes.test(file.mimetype);
+    if (mimetype && extname) return cb(null, true);
+    else cb(new Error("Apenas arquivos JPEG, PNG e PDF são permitidos"));
+  },
 });
 
-const upload = multer({ storage });
+app.get("/socket-test", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "socket-test.html"));
+});
 
-// Rota para criação de posts
-app.post("/posts", upload.single("image"), async (req, res) => {
+const uploadsDir = path.join(__dirname, "../uploads");
+
+app.use("/uploads", express.static(uploadsDir));
+
+app.get("/files", (req, res) => {
+  fs.readdir(uploadsDir, (err, files) => {
+    if (err) {
+      console.error("Erro ao listar arquivos", err);
+      return res.status(500).send("Erro ao listar arquivos.");
+    }
+
+    const fileList = files.map((file) => ({
+      filename: file,
+      path: `/uploads/${file}`,
+    }));
+
+    res.json(fileList);
+  });
+});
+
+app.get("/files/download/:filename", (req, res) => {
+  const filePath = path.join(uploadsDir, req.params.filename);
+  fs.access(filePath, fs.constants.F_OK, (err) => {
+    if (err) {
+      console.error("Arquivo não encontrado", err);
+      return res.status(404).send("Arquivo não encontrado.");
+    }
+
+    res.download(filePath, (err) => {
+      if (err) {
+        console.error("Erro ao baixar arquivo", err);
+        res.status(500).send("Erro ao baixar arquivo.");
+      }
+    });
+  });
+});
+
+app.post("/upload", upload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).send("Nenhum arquivo enviado");
+
+    const file = req.file;
+    const savedFile = await prisma.file.create({
+      data: {
+        filename: file.filename,
+        originalname: file.originalname,
+        mimetype: file.mimetype,
+        path: file.path,
+      },
+    });
+
+    res.json({ file: savedFile });
+  } catch (error) {
+    console.error("Erro ao fazer upload:", error);
+    res.status(500).send("Erro ao fazer upload");
+  }
+});
+
+app.get("/download/:id", async (req, res) => {
+  try {
+    const file = await prisma.file.findUnique({
+      where: { id: req.params.id },
+    });
+
+    if (!file) return res.status(404).send("Arquivo não encontrado");
+
+    res.download(file.path, file.originalname);
+  } catch (error) {
+    console.error("Erro ao fazer download:", error);
+    res.status(500).send("Erro ao fazer download");
+  }
+});
+
+app.get("/posts", async (req, res) => {
+  try {
+    console.log("Iniciando fetch de posts...");
+    const posts = await prisma.post.findMany({
+      orderBy: {
+        created_at: "desc",
+      },
+    });
+    console.log("Posts recuperados com sucesso:", posts);
+    res.json(posts);
+  } catch (error) {
+    console.error("Erro ao recuperar posts:", error);
+    res.status(500).json({ error: "Erro interno do servidor" });
+  }
+});
+
+const postStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "uploads/posts/"); // Pasta específica para uploads de imagens de posts
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + path.extname(file.originalname)); // Nome único para cada arquivo com timestamp
+  },
+});
+
+const postUpload = multer({
+  storage: postStorage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // Limite de 5MB
+  fileFilter: (req, file, cb) => {
+    const filetypes = /jpeg|jpg|png/; // Apenas arquivos de imagem
+    const extname = filetypes.test(
+      path.extname(file.originalname).toLowerCase()
+    );
+    const mimetype = filetypes.test(file.mimetype);
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(
+        new Error(
+          "Apenas arquivos JPEG, JPG e PNG são permitidos para imagens de posts."
+        )
+      );
+    }
+  },
+});
+
+app.post("/posts", postUpload.single("image"), async (req, res) => {
   const { conteudo, titulo } = req.body;
-  const imageUrl = req.file ? req.file.path : null;
+  const imagePath = req.file ? `/uploads/posts/${req.file.filename}` : null; // Caminho da imagem
 
   console.log("Recebendo nova requisição para criar post:", {
     conteudo,
     titulo,
-    imageUrl,
+    imagePath,
+    body: req.body, // Log completo do body
+    file: req.file, // Log completo do arquivo
   });
 
   if (!conteudo || !titulo) {
+    console.error("Dados de postagem inválidos: conteúdo ou título faltando");
     return res.status(400).json({
       error: "Conteúdo e título são obrigatórios.",
     });
@@ -119,11 +242,15 @@ app.post("/posts", upload.single("image"), async (req, res) => {
       data: {
         conteudo,
         titulo,
-        imagePath: imageUrl, // Salva a URL pública da imagem no banco de dados
+        imagePath, // Salva o caminho da imagem no banco de dados
       },
     });
 
+    console.log("Post criado com sucesso:", post);
+
     io.emit("new-post");
+    console.log("Emitindo evento de novo post via Socket.IO");
+
     return res.status(201).json(post);
   } catch (error) {
     console.error("Erro ao criar post:", error);
@@ -131,36 +258,41 @@ app.post("/posts", upload.single("image"), async (req, res) => {
   }
 });
 
-// Atualização de posts com nova imagem
-app.put("/posts/:id", upload.single("image"), async (req, res) => {
+// Endpoint para atualizar um post existente
+app.put("/posts/:id", postUpload.single("image"), async (req, res) => {
   const { id } = req.params;
   const { conteudo, titulo } = req.body;
-  const imageUrl = req.file ? req.file.path : undefined;
+  const imagePath = req.file
+    ? `/uploads/posts/${req.file.filename}`
+    : undefined;
 
   console.log("Recebendo requisição para atualizar post:", {
     id,
     conteudo,
     titulo,
-    imageUrl,
+    imagePath,
   });
 
   if (!conteudo || !titulo) {
+    console.error("Dados de postagem inválidos: conteúdo ou título faltando");
     return res.status(400).json({
       error: "Conteúdo e título são obrigatórios.",
     });
   }
 
   try {
+    // Atualiza o post no banco de dados
     const post = await prisma.post.update({
       where: { id },
       data: {
         conteudo,
         titulo,
-        ...(imageUrl && { imagePath: imageUrl }), // Se houver uma nova imagem, atualiza o campo
+        ...(imagePath && { imagePath }), // Se houver uma nova imagem, atualiza o campo
       },
     });
 
     console.log("Post atualizado com sucesso:", post);
+
     return res.status(200).json(post);
   } catch (error) {
     console.error("Erro ao atualizar post:", error);
@@ -175,11 +307,13 @@ app.delete("/posts/:id", async (req, res) => {
   console.log("Recebendo requisição para deletar post:", id);
 
   try {
+    // Deleta o post no banco de dados
     const post = await prisma.post.delete({
       where: { id },
     });
 
     console.log("Post deletado com sucesso:", post);
+
     return res.status(200).json({ message: "Post deletado com sucesso" });
   } catch (error) {
     console.error("Erro ao deletar post:", error);
