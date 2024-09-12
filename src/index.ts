@@ -87,7 +87,10 @@ const postStorage = new CloudinaryStorage({
   params: async (req, file) => {
     return {
       folder: "posts", // Pasta no Cloudinary para posts
-      format: "png", // Formato das imagens
+      format: async () => {
+        const ext = path.extname(file.originalname).slice(1);
+        return ext === "jpg" ? "jpeg" : ext; // Converte 'jpg' para 'jpeg' no Cloudinary
+      },
       public_id: Date.now().toString(), // Nome único baseado no timestamp
     };
   },
@@ -98,24 +101,57 @@ const uploadStorage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: async (req, file) => ({
     folder: "uploads", // Pasta no Cloudinary para uploads gerais
-    format: "png", // Formato das imagens
+    format: async () => {
+      const ext = path.extname(file.originalname).slice(1);
+      return ext === "jpg" ? "jpeg" : ext; // Converte 'jpg' para 'jpeg' no Cloudinary
+    },
     public_id: Date.now().toString(), // Nome único baseado no timestamp
   }),
 });
 
-// Configuração do multer com limite de tamanho de arquivo
+// Configuração do multer com limite de tamanho de arquivo e formatos aceitos
 const upload = multer({
   storage: uploadStorage,
   limits: {
-    fileSize: 10 * 1024 * 1024, // Limite de 10MB (ajuste conforme necessário)
+    fileSize: 10 * 1024 * 1024, // Limite de 10MB
+  },
+  fileFilter: (req, file, cb) => {
+    const filetypes = /jpeg|jpg|png|gif|webp/; // Formatos aceitos
+    const extname = filetypes.test(
+      path.extname(file.originalname).toLowerCase()
+    );
+    const mimetype = filetypes.test(file.mimetype);
+
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(
+        new Error("Apenas imagens são permitidas (jpeg, jpg, png, gif, webp).")
+      );
+    }
   },
 });
 
-// Configuração para postagens com limite de 10MB
+// Configuração para postagens com limite de 10MB e formatos aceitos
 const postUpload = multer({
   storage: postStorage,
   limits: {
-    fileSize: 10 * 1024 * 1024, // Limite de 10MB (ajuste conforme necessário)
+    fileSize: 10 * 1024 * 1024, // Limite de 10MB
+  },
+  fileFilter: (req, file, cb) => {
+    const filetypes = /jpeg|jpg|png|gif|webp/; // Formatos aceitos
+    const extname = filetypes.test(
+      path.extname(file.originalname).toLowerCase()
+    );
+    const mimetype = filetypes.test(file.mimetype);
+
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(
+        new Error("Apenas imagens são permitidas (jpeg, jpg, png, gif, webp).")
+      );
+    }
   },
 });
 
