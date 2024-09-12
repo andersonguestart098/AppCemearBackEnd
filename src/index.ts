@@ -81,36 +81,34 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Configuração do Multer para Cloudinary para posts
+// Configuração do Multer para Cloudinary para postagens
 const postStorage = new CloudinaryStorage({
   cloudinary: cloudinary,
-  params: async (req, file) => {
-    return {
-      folder: "posts", // Pasta no Cloudinary para posts
-      format: "png", // Formato das imagens
-      public_id: Date.now() + path.extname(file.originalname), // Nome único baseado no timestamp
-    };
-  },
+  params: async (req, file) => ({
+    folder: "posts", // Pasta no Cloudinary para posts
+    format: "png", // Formato das imagens
+    public_id: Date.now().toString(), // Nome único baseado no timestamp
+  }),
 });
 const postUpload = multer({ storage: postStorage });
 
 // Configuração do Multer para Cloudinary para uploads gerais
 const uploadStorage = new CloudinaryStorage({
   cloudinary: cloudinary,
-  params: async (req, file) => {
-    return {
-      folder: "uploads", // Pasta no Cloudinary para uploads gerais
-      format: "png", // Formato das imagens
-      public_id: Date.now() + path.extname(file.originalname), // Nome único baseado no timestamp
-    };
-  },
+  params: async (req, file) => ({
+    folder: "uploads", // Pasta no Cloudinary para uploads gerais
+    format: "png", // Formato das imagens
+    public_id: Date.now().toString(), // Nome único baseado no timestamp
+  }),
 });
 const upload = multer({ storage: uploadStorage });
 
 // Rota para criação de posts com Cloudinary
 app.post("/posts", postUpload.single("image"), async (req, res) => {
   const { conteudo, titulo } = req.body;
-  const imageUrl = req.file ? req.file.path : null;
+
+  // Use o secure_url do Cloudinary para pegar a URL correta da imagem
+  const imageUrl = req.file ? (req.file as any).path : null; // Ajuste para o TypeScript
 
   if (!conteudo || !titulo) {
     return res.status(400).json({
@@ -123,7 +121,7 @@ app.post("/posts", postUpload.single("image"), async (req, res) => {
       data: {
         conteudo,
         titulo,
-        imagePath: imageUrl, // Salva a URL pública da imagem no banco de dados
+        imagePath: imageUrl, // Salva a URL pública correta da imagem no banco de dados
       },
     });
 
@@ -135,25 +133,28 @@ app.post("/posts", postUpload.single("image"), async (req, res) => {
   }
 });
 
-// Endpoint para uploads gerais
+// Rota para uploads gerais com Cloudinary
 app.post("/upload", upload.single("file"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).send("Nenhum arquivo enviado");
 
-    const file = req.file;
+    // Use o secure_url do Cloudinary para pegar a URL correta da imagem e salvar no campo 'path'
+    const imageUrl = req.file ? (req.file as any).path : null; // Ajuste para o TypeScript
+
+    // Salva a URL pública no campo 'path' no MongoDB
     const savedFile = await prisma.file.create({
       data: {
-        filename: file.filename,
-        originalname: file.originalname,
-        mimetype: file.mimetype,
-        path: file.path, // Salva o caminho público do Cloudinary no banco
+        filename: req.file.originalname,
+        originalname: req.file.originalname,
+        mimetype: req.file.mimetype,
+        path: imageUrl, // Aproveitando o campo 'path' para armazenar a URL pública da imagem
       },
     });
 
-    res.json({ file: savedFile });
+    return res.json({ file: savedFile });
   } catch (error) {
     console.error("Erro ao fazer upload:", error);
-    res.status(500).send("Erro ao fazer upload");
+    return res.status(500).json({ error: "Erro ao fazer upload" });
   }
 });
 
