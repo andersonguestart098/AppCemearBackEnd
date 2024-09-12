@@ -136,10 +136,10 @@ const upload = multer({
 const postUpload = multer({
   storage: postStorage,
   limits: {
-    fileSize: 10 * 1024 * 1024, // Limite de 10MB
+    fileSize: 20 * 1024 * 1024, // Limite de 20MB
   },
   fileFilter: (req, file, cb) => {
-    const filetypes = /jpeg|jpg|png|gif|webp/; // Formatos aceitos
+    const filetypes = /jpeg|jpg|png|gif|webp/;
     const extname = filetypes.test(
       path.extname(file.originalname).toLowerCase()
     );
@@ -170,12 +170,26 @@ app.post("/posts", postUpload.single("image"), async (req, res) => {
   // Log do arquivo de imagem recebido
   console.log("Imagem recebida: ", req.file);
 
+  // Verifica se a imagem foi recebida
+  if (!req.file) {
+    console.error("Nenhum arquivo de imagem recebido.");
+    return res.status(400).json({ error: "Imagem é obrigatória." });
+  }
+
   // Usando o secure_url do Cloudinary para pegar a URL correta da imagem
   const imageUrl = req.file ? validateCloudinaryUrl(req.file.path) : null;
 
   // Log para verificar o URL da imagem
   console.log("URL da imagem: ", imageUrl);
 
+  if (!imageUrl) {
+    console.error("Erro ao validar URL da imagem.");
+    return res.status(400).json({
+      error: "A URL da imagem é inválida ou não foi gerada corretamente.",
+    });
+  }
+
+  // Verifica se o conteúdo e o título foram fornecidos
   if (!conteudo || !titulo) {
     console.error("Dados de postagem inválidos: conteúdo ou título faltando");
     return res.status(400).json({
