@@ -67,6 +67,17 @@ const prisma = new PrismaClient({
 
 app.use(express.static(path.join(__dirname, "public")));
 
+app.get("/", (req, res) => {
+  res.send(`Socket IO iniciou na porta: ${PORT}`);
+});
+
+app.use(express.static(path.join(__dirname, "public")));
+
+app.get("/", (req, res) => {
+  res.write(`Socket.IO iniciou na porta: ${PORT}`);
+  res.end();
+});
+
 // Configurando o Cloudinary com suas credenciais
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME, // Pegue essas informações do seu dashboard do Cloudinary
