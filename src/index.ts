@@ -127,12 +127,14 @@ app.post("/posts", postUpload.single("image"), async (req, res) => {
   console.log("URL da imagem: ", imageUrl);
 
   if (!conteudo || !titulo) {
+    console.error("Dados de postagem inválidos: conteúdo ou título faltando");
     return res.status(400).json({
       error: "Conteúdo e título são obrigatórios.",
     });
   }
 
   try {
+    // Criação do post no banco de dados
     const post = await prisma.post.create({
       data: {
         conteudo,
@@ -141,7 +143,76 @@ app.post("/posts", postUpload.single("image"), async (req, res) => {
       },
     });
 
+    console.log("Post criado com sucesso:", post);
+
+    // Emitindo o evento para o Socket.IO
     io.emit("new-post");
+    console.log("Emitindo evento de novo post via Socket.IO");
+
+    // Enviando notificação local
+    notifier.notify({
+      title: "Novo Post",
+      message: `Novo post: ${titulo}`,
+      sound: true,
+      wait: true,
+    });
+    console.log("Notificação local enviada via notifier");
+
+    // Recuperando a assinatura mais recente do banco de dados
+    const [subscription] = await prisma.subscription.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 1, // Pegamos a assinatura mais recente
+    });
+
+    if (subscription) {
+      console.log(
+        "Assinatura mais recente encontrada no banco de dados:",
+        subscription
+      );
+
+      // Conversão das chaves para Buffer
+      const p256dhBuffer = Buffer.from(subscription.p256dh, "base64");
+      const authBuffer = Buffer.from(subscription.auth, "base64");
+
+      console.log("Comprimento de p256dh:", p256dhBuffer.length);
+      console.log("Comprimento de auth:", authBuffer.length);
+
+      // Validação do tamanho das chaves
+      if (p256dhBuffer.length !== 65 || authBuffer.length !== 16) {
+        console.error(
+          "O valor p256dh ou auth da assinatura está com tamanho inválido."
+        );
+        return res.status(400).json({
+          error: "A assinatura tem um valor p256dh ou auth inválido.",
+        });
+      }
+
+      // Preparando payload de notificação
+      const payload = JSON.stringify({
+        title: titulo,
+        body: "Novo Post!",
+        icon: "public/icones/logoCE.ico",
+      });
+
+      const subscriptionObject = {
+        endpoint: subscription.endpoint,
+        keys: {
+          p256dh: subscription.p256dh,
+          auth: subscription.auth,
+        },
+      };
+
+      try {
+        await sendNotification(subscriptionObject, payload);
+        console.log("Notificação push enviada com sucesso!");
+      } catch (error) {
+        console.error("Erro ao enviar notificação push", error);
+      }
+    } else {
+      console.error("Nenhuma assinatura encontrada no banco de dados.");
+    }
+
+    // Retorna o post criado com status 201
     return res.status(201).json(post);
   } catch (error) {
     console.error("Erro ao criar post:", error);
