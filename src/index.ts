@@ -378,12 +378,12 @@ app.post("/subscribe", async (req, res) => {
   console.log("Chaves recebidas do cliente:", keys);
 
   try {
-    // Verifique se o userId é um ObjectId válido
-    let userId = bodyUserId || "664644ed03a45b78015b8d"; // Use o userId do corpo ou um valor padrão
-    if (!ObjectId.isValid(userId)) {
+    // Verifica se o userId foi fornecido e é um ObjectId válido
+    if (!bodyUserId || !ObjectId.isValid(bodyUserId)) {
       return res.status(400).json({ error: "Invalid user ID format" });
     }
-    userId = new ObjectId(userId); // Certifique-se de que o ID seja um ObjectId
+
+    const userId = new ObjectId(bodyUserId); // Certifique-se de que o ID seja um ObjectId válido
 
     // Armazena a assinatura
     const subscription = await prisma.subscription.create({
@@ -392,7 +392,7 @@ app.post("/subscribe", async (req, res) => {
         p256dh: keys.p256dh,
         auth: keys.auth,
         user: {
-          connect: { id: userId },
+          connect: { id: userId }, // Conecta com o usuário usando o ObjectId convertido
         },
         keys: JSON.stringify(keys),
       },
