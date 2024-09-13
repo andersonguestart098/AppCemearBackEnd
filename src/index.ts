@@ -379,7 +379,7 @@ app.post("/subscribe", async (req, res) => {
 
   try {
     // Verifique se o userId é um ObjectId válido
-    let userId = bodyUserId || req.user?.id || "664644ed03a45b78015b8d"; // Pegue o userId do corpo, req.user, ou use um valor padrão
+    let userId = bodyUserId || "664644ed03a45b78015b8d"; // Use o userId do corpo ou um valor padrão
     if (!ObjectId.isValid(userId)) {
       return res.status(400).json({ error: "Invalid user ID format" });
     }
