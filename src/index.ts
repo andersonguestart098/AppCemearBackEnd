@@ -4,18 +4,14 @@ import { Server as SocketIOServer } from "socket.io";
 import { PrismaClient } from "@prisma/client";
 import cors from "cors";
 import multer from "multer";
-import { v2 as cloudinary } from "cloudinary";
-import { CloudinaryStorage } from "multer-storage-cloudinary";
 import path from "path";
+import fs from "fs";
 import notifier from "node-notifier";
 import { sendNotification } from "./notification";
 import authRoutes from "./routes/auth"; // Rotas de autenticação
 import auth from "./middleware/auth"; // Middleware de autenticação
 import { Request, Response } from "express";
-import bcrypt from "bcrypt";
-
 import * as dotenv from "dotenv";
-
 dotenv.config();
 
 const app = express();
@@ -71,124 +67,169 @@ app.get("/", (req, res) => {
   res.send(`Socket IO iniciou na porta: ${PORT}`);
 });
 
+app.use(express.static(path.join(__dirname, "public")));
+
 app.get("/", (req, res) => {
-  res.write(`Socket.IO iniciou na Porta: ${PORT}`);
+  res.write(`Socket.IO iniciou na porta: ${PORT}`);
   res.end();
 });
 
-// Configurando o Cloudinary
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
+// Configuração do multer
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, "uploads/"),
+  filename: (req, file, cb) =>
+    cb(null, Date.now() + path.extname(file.originalname)),
 });
 
-// Configuração do Multer para Cloudinary para postagens
-const postStorage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: async (req, file) => {
-    return {
-      folder: "posts",
-      allowed_formats: ["jpeg", "png", "jpg", "gif", "webp"], // Tipos de formatos suportados
-      public_id: Date.now().toString(), // Nome único baseado no timestamp
-    };
-  },
-});
-
-// Configuração do Multer para Cloudinary para uploads gerais
-const uploadStorage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: async (req, file) => ({
-    folder: "uploads", // Pasta no Cloudinary para uploads gerais
-    format: async () => {
-      const ext = path.extname(file.originalname).slice(1);
-      return ext === "jpg" ? "jpeg" : ext; // Converte 'jpg' para 'jpeg' no Cloudinary
-    },
-    public_id: Date.now().toString(), // Nome único baseado no timestamp
-  }),
-});
-
-// Configuração do multer com limite de tamanho de arquivo e formatos aceitos
 const upload = multer({
-  storage: uploadStorage,
-  limits: {
-    fileSize: 10 * 1024 * 1024, // Limite de 10MB
-  },
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    const filetypes = /jpeg|jpg|png|gif|webp/; // Formatos aceitos
+    const filetypes = /jpeg|jpg|png|pdf/;
     const extname = filetypes.test(
       path.extname(file.originalname).toLowerCase()
     );
     const mimetype = filetypes.test(file.mimetype);
-
-    if (mimetype && extname) {
-      return cb(null, true);
-    } else {
-      cb(
-        new Error("Apenas Imagens são permitidas (jpeg, jpg, png, gif, webp).")
-      );
-    }
+    if (mimetype && extname) return cb(null, true);
+    else cb(new Error("Apenas arquivos JPEG, PNG e PDF são permitidos"));
   },
 });
 
-// Configuração para postagens com limite de 10MB e formatos aceitos
+app.get("/socket-test", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "socket-test.html"));
+});
+
+const uploadsDir = path.join(__dirname, "../uploads");
+
+app.use("/uploads", express.static(uploadsDir));
+
+app.get("/files", (req, res) => {
+  fs.readdir(uploadsDir, (err, files) => {
+    if (err) {
+      console.error("Erro ao listar arquivos", err);
+      return res.status(500).send("Erro ao listar arquivos.");
+    }
+
+    const fileList = files.map((file) => ({
+      filename: file,
+      path: `/uploads/${file}`,
+    }));
+
+    res.json(fileList);
+  });
+});
+
+app.get("/files/download/:filename", (req, res) => {
+  const filePath = path.join(uploadsDir, req.params.filename);
+  fs.access(filePath, fs.constants.F_OK, (err) => {
+    if (err) {
+      console.error("Arquivo não encontrado", err);
+      return res.status(404).send("Arquivo não encontrado.");
+    }
+
+    res.download(filePath, (err) => {
+      if (err) {
+        console.error("Erro ao baixar arquivo", err);
+        res.status(500).send("Erro ao baixar arquivo.");
+      }
+    });
+  });
+});
+
+app.post("/upload", upload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).send("Nenhum arquivo enviado");
+
+    const file = req.file;
+    const savedFile = await prisma.file.create({
+      data: {
+        filename: file.filename,
+        originalname: file.originalname,
+        mimetype: file.mimetype,
+        path: file.path,
+      },
+    });
+
+    res.json({ file: savedFile });
+  } catch (error) {
+    console.error("Erro ao fazer upload:", error);
+    res.status(500).send("Erro ao fazer upload");
+  }
+});
+
+app.get("/download/:id", async (req, res) => {
+  try {
+    const file = await prisma.file.findUnique({
+      where: { id: req.params.id },
+    });
+
+    if (!file) return res.status(404).send("Arquivo não encontrado");
+
+    res.download(file.path, file.originalname);
+  } catch (error) {
+    console.error("Erro ao fazer download:", error);
+    res.status(500).send("Erro ao fazer download");
+  }
+});
+
+app.get("/posts", async (req, res) => {
+  try {
+    console.log("Iniciando fetch de posts...");
+    const posts = await prisma.post.findMany({
+      orderBy: {
+        created_at: "desc",
+      },
+    });
+    console.log("Posts recuperados com sucesso:", posts);
+    res.json(posts);
+  } catch (error) {
+    console.error("Erro ao recuperar posts:", error);
+    res.status(500).json({ error: "Erro interno do servidor" });
+  }
+});
+
+const postStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "uploads/posts/"); // Pasta específica para uploads de imagens de posts
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + path.extname(file.originalname)); // Nome único para cada arquivo com timestamp
+  },
+});
+
 const postUpload = multer({
   storage: postStorage,
-  limits: {
-    fileSize: 20 * 1024 * 1024, // Limite de 20MB
-  },
+  limits: { fileSize: 10 * 1024 * 1024 }, // Limite de 5MB
   fileFilter: (req, file, cb) => {
-    const filetypes = /jpeg|jpg|png|gif|webp/;
+    const filetypes = /jpeg|jpg|png/; // Apenas arquivos de imagem
     const extname = filetypes.test(
       path.extname(file.originalname).toLowerCase()
     );
     const mimetype = filetypes.test(file.mimetype);
-
     if (mimetype && extname) {
       return cb(null, true);
     } else {
       cb(
-        new Error("Apenas imagens são permitidas (jpeg, jpg, png, gif, webp).")
+        new Error(
+          "Apenas arquivos JPEG, JPG e PNG são permitidos para imagens de posts."
+        )
       );
     }
   },
 });
 
-const validateCloudinaryUrl = (url) => {
-  if (url && url.startsWith("https://res.cloudinary.com")) {
-    return url;
-  }
-  console.error(`URL inválido do Cloudinary: ${url}`);
-  return null;
-};
-
-// Rota para criação de posts com Cloudinary
 app.post("/posts", postUpload.single("image"), async (req, res) => {
   const { conteudo, titulo } = req.body;
+  const imagePath = req.file ? `/uploads/posts/${req.file.filename}` : null; // Caminho da imagem
 
-  // Log do arquivo de imagem recebido
-  console.log("Imagem recebida: ", req.file);
+  console.log("Recebendo nova requisição para criar post:", {
+    conteudo,
+    titulo,
+    imagePath,
+    body: req.body, // Log completo do body
+    file: req.file, // Log completo do arquivo
+  });
 
-  // Verifica se a imagem foi recebida
-  if (!req.file) {
-    console.error("Nenhum arquivo de imagem recebido.");
-    return res.status(400).json({ error: "Imagem é obrigatória." });
-  }
-
-  // Usando o secure_url do Cloudinary para pegar a URL correta da imagem
-  const imageUrl = req.file ? validateCloudinaryUrl(req.file.path) : null;
-
-  // Log para verificar o URL da imagem
-  console.log("URL da imagem: ", imageUrl);
-
-  if (!imageUrl) {
-    console.error("Erro ao validar URL da imagem.");
-    return res.status(400).json({
-      error: "A URL da imagem é inválida ou não foi gerada corretamente.",
-    });
-  }
-
-  // Verifica se o conteúdo e o título foram fornecidos
   if (!conteudo || !titulo) {
     console.error("Dados de postagem inválidos: conteúdo ou título faltando");
     return res.status(400).json({
@@ -197,85 +238,19 @@ app.post("/posts", postUpload.single("image"), async (req, res) => {
   }
 
   try {
-    // Criação do post no banco de dados
     const post = await prisma.post.create({
       data: {
         conteudo,
         titulo,
-        imagePath: imageUrl, // Salva a URL pública correta da imagem no banco de dados
+        imagePath, // Salva o caminho da imagem no banco de dados
       },
     });
 
     console.log("Post criado com sucesso:", post);
 
-    // Emitindo o evento para o Socket.IO
     io.emit("new-post");
     console.log("Emitindo evento de novo post via Socket.IO");
 
-    // Enviando notificação local
-    notifier.notify({
-      title: "Novo Post",
-      message: `Novo post: ${titulo}`,
-      sound: true,
-      wait: true,
-    });
-    console.log("Notificação local enviada via notifier");
-
-    // Recuperando a assinatura mais recente do banco de dados
-    const [subscription] = await prisma.subscription.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 1, // Pegamos a assinatura mais recente
-    });
-
-    if (subscription) {
-      console.log(
-        "Assinatura mais recente encontrada no banco de dados:",
-        subscription
-      );
-
-      // Conversão das chaves para Buffer
-      const p256dhBuffer = Buffer.from(subscription.p256dh, "base64");
-      const authBuffer = Buffer.from(subscription.auth, "base64");
-
-      console.log("Comprimento de p256dh:", p256dhBuffer.length);
-      console.log("Comprimento de auth:", authBuffer.length);
-
-      // Validação do tamanho das chaves
-      if (p256dhBuffer.length !== 65 || authBuffer.length !== 16) {
-        console.error(
-          "O valor p256dh ou auth da assinatura está com tamanho inválido."
-        );
-        return res.status(400).json({
-          error: "A assinatura tem um valor p256dh ou auth inválido.",
-        });
-      }
-
-      // Preparando payload de notificação
-      const payload = JSON.stringify({
-        title: titulo,
-        body: "Novo Post!",
-        icon: "public/icones/logoCE.ico",
-      });
-
-      const subscriptionObject = {
-        endpoint: subscription.endpoint,
-        keys: {
-          p256dh: subscription.p256dh,
-          auth: subscription.auth,
-        },
-      };
-
-      try {
-        await sendNotification(subscriptionObject, payload);
-        console.log("Notificação push enviada com sucesso!");
-      } catch (error) {
-        console.error("Erro ao enviar notificação push", error);
-      }
-    } else {
-      console.error("Nenhuma assinatura encontrada no banco de dados.");
-    }
-
-    // Retorna o post criado com status 201
     return res.status(201).json(post);
   } catch (error) {
     console.error("Erro ao criar post:", error);
@@ -283,86 +258,66 @@ app.post("/posts", postUpload.single("image"), async (req, res) => {
   }
 });
 
-// Rota para uploads gerais com Cloudinary
-app.post("/upload", upload.single("file"), async (req, res) => {
-  try {
-    if (!req.file) return res.status(400).send("Nenhum arquivo enviado");
-
-    // Use o secure_url do Cloudinary para pegar a URL correta da imagem e salvar no campo 'path'
-    const imageUrl = req.file ? (req.file as any).path : null; // Ajuste para o TypeScript
-
-    // Salva a URL pública no campo 'path' no MongoDB
-    const savedFile = await prisma.file.create({
-      data: {
-        filename: req.file.originalname,
-        originalname: req.file.originalname,
-        mimetype: req.file.mimetype,
-        path: imageUrl, // Aproveitando o campo 'path' para armazenar a URL pública da imagem
-      },
-    });
-
-    return res.json({ file: savedFile });
-  } catch (error) {
-    console.error("Erro ao fazer upload:", error);
-    return res.status(500).json({ error: "Erro ao fazer upload" });
-  }
-});
-
-// Outras rotas
-app.get("/posts", async (req, res) => {
-  try {
-    const posts = await prisma.post.findMany({
-      orderBy: {
-        created_at: "desc",
-      },
-    });
-    res.json(posts);
-  } catch (error) {
-    console.error("Erro ao recuperar posts:", error);
-    res.status(500).json({ error: "Erro interno do servidor" });
-  }
-});
-
+// Endpoint para atualizar um post existente
 app.put("/posts/:id", postUpload.single("image"), async (req, res) => {
   const { id } = req.params;
   const { conteudo, titulo } = req.body;
-  const imageUrl = req.file ? req.file.path : undefined;
+  const imagePath = req.file
+    ? `/uploads/posts/${req.file.filename}`
+    : undefined;
+
+  console.log("Recebendo requisição para atualizar post:", {
+    id,
+    conteudo,
+    titulo,
+    imagePath,
+  });
 
   if (!conteudo || !titulo) {
+    console.error("Dados de postagem inválidos: conteúdo ou título faltando");
     return res.status(400).json({
       error: "Conteúdo e título são obrigatórios.",
     });
   }
 
   try {
+    // Atualiza o post no banco de dados
     const post = await prisma.post.update({
       where: { id },
       data: {
         conteudo,
         titulo,
-        ...(imageUrl && { imagePath: imageUrl }), // Se houver uma nova imagem, atualiza o campo
+        ...(imagePath && { imagePath }), // Se houver uma nova imagem, atualiza o campo
       },
     });
 
-    res.status(200).json(post);
+    console.log("Post atualizado com sucesso:", post);
+
+    return res.status(200).json(post);
   } catch (error) {
     console.error("Erro ao atualizar post:", error);
-    res.status(500).json({ error: "Erro ao atualizar post" });
+    return res.status(500).json({ error: "Erro ao atualizar post" });
   }
 });
 
+// Endpoint para deletar um post existente
 app.delete("/posts/:id", async (req, res) => {
   const { id } = req.params;
 
+  console.log("Recebendo requisição para deletar post:", id);
+
   try {
+    // Deleta o post no banco de dados
     const post = await prisma.post.delete({
       where: { id },
     });
 
-    res.status(200).json({ message: "Post deletado com sucesso" });
+    console.log("Post deletado com sucesso:", post);
+
+    return res.status(200).json({ message: "Post deletado com sucesso" });
   } catch (error) {
     console.error("Erro ao deletar post:", error);
-    res.status(500).json({ error: "Erro ao deletar post" });
+    return res.status(500).json({ error: "Erro ao deletar post" });
   }
 });
 
@@ -371,9 +326,7 @@ app.post("/sendNotification", async (req, res) => {
 
   try {
     // Recupera todas as assinaturas do usuário (ou para todos os usuários)
-    const subscriptions = await prisma.subscription.findMany({
-      include: { user: true }, // Inclui o usuário relacionado em cada assinatura
-    });
+    const subscriptions = await prisma.subscription.findMany();
 
     if (subscriptions.length === 0) {
       console.error("Nenhuma assinatura encontrada.");
@@ -388,13 +341,6 @@ app.post("/sendNotification", async (req, res) => {
 
     // Enviar notificação para todas as assinaturas
     for (const subscription of subscriptions) {
-      // Se o usuário estiver associado à assinatura, você pode logá-lo
-      if (subscription?.user) {
-        console.log(
-          `Enviando notificação para o usuário: ${subscription.user.usuario}`
-        );
-      }
-
       const subscriptionObject = {
         endpoint: subscription.endpoint,
         keys: {
@@ -424,24 +370,27 @@ app.post("/sendNotification", async (req, res) => {
 });
 
 app.post("/subscribe", async (req, res) => {
-  const { endpoint, keys, userId } = req.body; // Recebe userId
+  const { endpoint, keys } = req.body;
 
-  if (!userId) {
-    return res.status(400).json({ error: "userId é obrigatório" });
-  }
+  // Logando as chaves recebidas para debug
+  console.log("Chaves recebidas do cliente:", keys);
+
+  // Verifica o userId ou algum identificador exclusivo do usuário, se aplicável
+  const userId = req.user?.id || "default_user"; // Substitua por como você identifica o usuário
 
   try {
+    // Armazena as assinaturas sem sobrescrever as anteriores
     const subscription = await prisma.subscription.create({
       data: {
         endpoint,
         p256dh: keys.p256dh,
         auth: keys.auth,
-        userId, // Passa o userId aqui
+        userId, // Associando a assinatura ao usuário
         keys: JSON.stringify(keys),
       },
     });
 
-    console.log("Assinatura armazenada:", subscription);
+    console.log("Assinatura armazenada no banco de dados:", subscription);
     res.status(201).json({ message: "Assinatura salva com sucesso." });
   } catch (error) {
     console.error("Erro ao salvar assinatura:", error);
@@ -461,31 +410,6 @@ app.get("/events", async (req, res) => {
   } catch (error) {
     console.error("Erro ao buscar eventos:", error);
     res.status(500).send("Erro ao buscar eventos");
-  }
-});
-
-app.post("/register", async (req, res) => {
-  const { usuario, password, tipoUsuario } = req.body;
-
-  if (!usuario || !password || !tipoUsuario) {
-    return res.status(400).json({ error: "Todos os campos são obrigatórios" });
-  }
-
-  // Aqui, insira a lógica para verificar se o usuário já existe e criar um novo usuário
-
-  try {
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = await prisma.user.create({
-      data: {
-        usuario,
-        password: hashedPassword,
-        tipoUsuario,
-      },
-    });
-
-    return res.status(201).json(newUser);
-  } catch (error) {
-    return res.status(500).json({ error: "Erro ao criar o usuário" });
   }
 });
 
