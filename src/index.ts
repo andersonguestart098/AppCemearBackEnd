@@ -373,15 +373,14 @@ app.post("/sendNotification", async (req, res) => {
 const { ObjectId } = require("mongodb");
 
 app.post("/subscribe", async (req, res) => {
-  const { endpoint, keys } = req.body;
+  const { endpoint, keys, userId: bodyUserId } = req.body;
 
   console.log("Chaves recebidas do cliente:", keys);
 
   try {
     // Verifique se o userId é um ObjectId válido
-    let userId = req.user?.id || "664644ed03a45b78015b8d"; // Pegue o userId ou use um valor padrão
+    let userId = bodyUserId || req.user?.id || "664644ed03a45b78015b8d"; // Pegue o userId do corpo, req.user, ou use um valor padrão
     if (!ObjectId.isValid(userId)) {
-      console.log("Invalid user ID format:", userId);
       return res.status(400).json({ error: "Invalid user ID format" });
     }
     userId = new ObjectId(userId); // Certifique-se de que o ID seja um ObjectId
@@ -393,7 +392,7 @@ app.post("/subscribe", async (req, res) => {
         p256dh: keys.p256dh,
         auth: keys.auth,
         user: {
-          connect: { id: userId.toString() }, // Conecte o usuário pelo id
+          connect: { id: userId },
         },
         keys: JSON.stringify(keys),
       },
@@ -402,7 +401,7 @@ app.post("/subscribe", async (req, res) => {
     console.log("Assinatura armazenada no banco de dados:", subscription);
     res.status(201).json({ message: "Assinatura salva com sucesso." });
   } catch (error) {
-    console.error("Erro ao salvar assinatura:", error.message);
+    console.error("Erro ao salvar assinatura:", error);
     res.status(500).json({ error: "Erro ao salvar assinatura" });
   }
 });
