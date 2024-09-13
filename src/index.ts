@@ -12,7 +12,7 @@ import authRoutes from "./routes/auth"; // Rotas de autenticação
 import auth from "./middleware/auth"; // Middleware de autenticação
 import { Request, Response } from "express";
 import * as dotenv from "dotenv";
-const { ObjectId } = require("mongodb");
+
 dotenv.config();
 
 const app = express();
@@ -370,19 +370,20 @@ app.post("/sendNotification", async (req, res) => {
   }
 });
 
+const { ObjectId } = require("mongodb");
+
 app.post("/subscribe", async (req, res) => {
   const { endpoint, keys } = req.body;
 
   console.log("Chaves recebidas do cliente:", keys);
 
   try {
+    // Verifique se o userId é um ObjectId válido
     let userId = req.user?.id || "664644ed03a45b78015b8d"; // Pegue o userId ou use um valor padrão
-
     if (!ObjectId.isValid(userId)) {
       console.log("Invalid user ID format:", userId);
       return res.status(400).json({ error: "Invalid user ID format" });
     }
-
     userId = new ObjectId(userId); // Certifique-se de que o ID seja um ObjectId
 
     // Armazena a assinatura
@@ -392,7 +393,7 @@ app.post("/subscribe", async (req, res) => {
         p256dh: keys.p256dh,
         auth: keys.auth,
         user: {
-          connect: { id: userId },
+          connect: { id: userId.toString() }, // Conecte o usuário pelo id
         },
         keys: JSON.stringify(keys),
       },
