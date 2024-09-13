@@ -12,6 +12,8 @@ import { sendNotification } from "./notification";
 import authRoutes from "./routes/auth"; // Rotas de autenticação
 import auth from "./middleware/auth"; // Middleware de autenticação
 import { Request, Response } from "express";
+import bcrypt from "bcrypt";
+
 import * as dotenv from "dotenv";
 
 dotenv.config();
@@ -451,6 +453,31 @@ app.get("/events", async (req, res) => {
   } catch (error) {
     console.error("Erro ao buscar eventos:", error);
     res.status(500).send("Erro ao buscar eventos");
+  }
+});
+
+app.post("/register", async (req, res) => {
+  const { usuario, password, tipoUsuario } = req.body;
+
+  if (!usuario || !password || !tipoUsuario) {
+    return res.status(400).json({ error: "Todos os campos são obrigatórios" });
+  }
+
+  // Aqui, insira a lógica para verificar se o usuário já existe e criar um novo usuário
+
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = await prisma.user.create({
+      data: {
+        usuario,
+        password: hashedPassword,
+        tipoUsuario,
+      },
+    });
+
+    return res.status(201).json(newUser);
+  } catch (error) {
+    return res.status(500).json({ error: "Erro ao criar o usuário" });
   }
 });
 

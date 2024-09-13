@@ -344,93 +344,61 @@ app.delete("/posts/:id", (req, res) => __awaiter(void 0, void 0, void 0, functio
     }
 }));
 app.post("/sendNotification", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    console.log("Recebendo requisição para enviar notificação");
+    const { titulo } = req.body;
     try {
-        // Ajuste a consulta para buscar a assinatura mais recente
-        const subscription = yield prisma.subscription.findFirst({
-            orderBy: {
-                createdAt: "desc", // Ordena pela data de criação para pegar a assinatura mais recente
-            },
+        // Recupera todas as assinaturas do usuário (ou para todos os usuários)
+        const subscriptions = yield prisma.subscription.findMany();
+        if (subscriptions.length === 0) {
+            console.error("Nenhuma assinatura encontrada.");
+            return res.status(404).json({ error: "Nenhuma assinatura encontrada" });
+        }
+        const payload = JSON.stringify({
+            title: titulo || "Novo Post!",
+            body: `Um novo post foi criado com o título: ${titulo}`,
+            icon: "/path/to/icon.png",
         });
-        if (subscription) {
-            // Logar as chaves recuperadas
-            console.log("Chaves recuperadas diretamente do banco:");
-            console.log("p256dh (base64, direto do banco):", subscription.p256dh);
-            console.log("auth (base64, direto do banco):", subscription.auth);
-            const p256dhDecoded = Buffer.from(subscription.p256dh, "base64");
-            const authDecoded = Buffer.from(subscription.auth, "base64");
-            console.log("Tamanhos das chaves decodificadas:");
-            console.log("Tamanho de p256dh decodificado:", p256dhDecoded.length);
-            console.log("Tamanho de auth decodificado:", authDecoded.length);
-            if (p256dhDecoded.length !== 65 || authDecoded.length !== 16) {
-                console.error("Chaves com tamanho inválido após decodificação.");
-                return res
-                    .status(400)
-                    .json({ error: "Chaves com tamanho inválido após decodificação." });
-            }
-            const { titulo } = req.body;
-            const payload = JSON.stringify({
-                title: titulo || "Novo Post!",
-                body: `Um novo post foi criado com o título: ${titulo}`,
-                icon: "/path/to/icon.png",
-            });
+        // Enviar notificação para todas as assinaturas
+        for (const subscription of subscriptions) {
             const subscriptionObject = {
                 endpoint: subscription.endpoint,
                 keys: {
-                    p256dh: subscription.p256dh, // Usar o valor original base64
-                    auth: subscription.auth, // Usar o valor original base64
+                    p256dh: subscription.p256dh,
+                    auth: subscription.auth,
                 },
             };
             try {
                 yield (0, notification_1.sendNotification)(subscriptionObject, payload);
-                console.log("Notificação push enviada com sucesso!");
-                res.status(200).json({ message: "Notificação enviada com sucesso!" });
+                console.log(`Notificação enviada com sucesso para: ${subscription.endpoint}`);
             }
             catch (error) {
-                console.error("Erro ao enviar notificação push", error);
-                res.status(500).json({ error: "Erro ao enviar notificação push" });
+                console.error(`Erro ao enviar notificação para: ${subscription.endpoint}`, error);
             }
         }
-        else {
-            console.error("Nenhuma assinatura encontrada.");
-            res.status(404).json({ error: "Nenhuma assinatura encontrada" });
-        }
+        res.status(200).json({ message: "Notificações enviadas com sucesso!" });
     }
     catch (error) {
-        console.error("Erro ao buscar assinatura:", error);
-        res.status(500).json({ error: "Erro ao buscar assinatura" });
+        console.error("Erro ao enviar notificações push", error);
+        res.status(500).json({ error: "Erro ao enviar notificações push" });
     }
 }));
 app.post("/subscribe", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
     const { endpoint, keys } = req.body;
-    // Logando as chaves recebidas para debug
-    console.log("Chaves recebidas do cliente:");
-    console.log("p256dh (base64):", keys.p256dh);
-    console.log("auth (base64):", keys.auth);
-    // Converte as chaves de base64 para binário
-    const p256dhBuffer = Buffer.from(keys.p256dh, "base64");
-    const authBuffer = Buffer.from(keys.auth, "base64");
-    console.log("Tamanhos das chaves:");
-    console.log("Tamanho de p256dh:", p256dhBuffer.length);
-    console.log("Tamanho de auth:", authBuffer.length);
-    if (p256dhBuffer.length !== 65 || authBuffer.length !== 16) {
-        console.error("Chaves p256dh ou auth têm o comprimento incorreto.");
-        return res.status(400).json({ error: "Chaves de assinatura inválidas." });
+    const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id; // Supondo que você tenha o ID do usuário no req.user
+    if (!userId) {
+        return res.status(401).json({ error: "Usuário não autenticado" });
     }
     try {
-        // Armazena as chaves no banco como base64 (string)
         const subscription = yield prisma.subscription.create({
             data: {
                 endpoint,
-                p256dh: keys.p256dh, // Armazena como string base64
-                auth: keys.auth, // Armazena como string base64
-                keys: JSON.stringify(keys), // Opcional: se você ainda quiser armazenar a versão em JSON
+                p256dh: keys.p256dh,
+                auth: keys.auth,
+                userId, // Associando a assinatura ao usuário
+                keys: JSON.stringify(keys),
             },
         });
-        // Logar o que foi armazenado
-        console.log("Assinatura armazenada no banco de dados:");
-        console.log("p256dh armazenado (base64):", subscription.p256dh);
-        console.log("auth armazenado (base64):", subscription.auth);
+        console.log("Assinatura armazenada no banco de dados:", subscription);
         res.status(201).json({ message: "Assinatura salva com sucesso." });
     }
     catch (error) {

@@ -1,26 +1,34 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
-async function updateSubscriptions() {
-  const subscriptions = await prisma.subscription.findMany();
+async function recreateSubscriptions() {
+  try {
+    // Deletando a coleção Subscriptions
+    await prisma.$executeRaw`db.subscriptions.drop()`;
 
-  for (let subscription of subscriptions) {
-    if (!subscription.userId) {
-      // Aqui, você pode buscar o ID do usuário real ou atribuir um valor padrão.
-      // Exemplo: Atribuindo um ID padrão de um usuário específico.
-      const defaultUserId = "some-default-user-id"; // Substitua pelo ID real do usuário
+    console.log("Coleção 'subscriptions' deletada com sucesso.");
 
-      await prisma.subscription.update({
-        where: { id: subscription.id },
-        data: { userId: defaultUserId }, // Associa cada assinatura a um usuário
-      });
-    }
+    // Recriando a coleção com os campos necessários
+    await prisma.subscription.create({
+      data: {
+        endpoint: "https://fcm.googleapis.com/fcm/send/exemplo", // Substitua com o valor real
+        p256dh: "chaveP256dh", // Substitua com a chave real
+        auth: "chaveAuth", // Substitua com a chave real
+        userId: "66d0d063e80667143e188ac8", // Substitua por um ID de usuário válido
+        createdAt: new Date(),
+        keys: JSON.stringify({ p256dh: "chaveP256dh", auth: "chaveAuth" }),
+      },
+    });
+
+    console.log("Nova coleção 'subscriptions' criada com sucesso.");
+  } catch (error) {
+    console.error("Erro ao recriar a coleção 'subscriptions':", error);
+  } finally {
+    await prisma.$disconnect();
   }
-
-  console.log("Todas as subscriptions foram atualizadas com o campo userId.");
 }
 
-updateSubscriptions()
+recreateSubscriptions()
   .catch((e) => {
     console.error(e);
   })
