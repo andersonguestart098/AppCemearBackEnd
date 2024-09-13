@@ -12,6 +12,7 @@ import authRoutes from "./routes/auth"; // Rotas de autenticação
 import auth from "./middleware/auth"; // Middleware de autenticação
 import { Request, Response } from "express";
 import * as dotenv from "dotenv";
+const { ObjectId } = require("mongodb");
 dotenv.config();
 
 const app = express();
@@ -372,21 +373,24 @@ app.post("/sendNotification", async (req, res) => {
 app.post("/subscribe", async (req, res) => {
   const { endpoint, keys } = req.body;
 
-  // Logando as chaves recebidas para debug
   console.log("Chaves recebidas do cliente:", keys);
 
   try {
-    // Verifica o userId ou algum identificador exclusivo do usuário, se aplicável
-    const userId = req.user?.id || "664644ed03a45b78015b8d"; // Certifique-se de que esse valor seja um ObjectId válido
+    // Verifique se o userId é um ObjectId válido
+    let userId = req.user?.id || "664644ed03a45b78015b8d"; // Pegue o userId ou use um valor padrão
+    if (!ObjectId.isValid(userId)) {
+      return res.status(400).json({ error: "Invalid user ID format" });
+    }
+    userId = new ObjectId(userId); // Certifique-se de que o ID seja um ObjectId
 
-    // Armazena as assinaturas sem sobrescrever as anteriores
+    // Armazena a assinatura
     const subscription = await prisma.subscription.create({
       data: {
         endpoint,
         p256dh: keys.p256dh,
         auth: keys.auth,
         user: {
-          connect: { id: userId }, // Conectando o usuário com base no ID
+          connect: { id: userId },
         },
         keys: JSON.stringify(keys),
       },
