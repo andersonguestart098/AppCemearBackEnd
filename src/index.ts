@@ -423,7 +423,7 @@ app.post("/sendNotification", async (req, res) => {
   }
 });
 
-app.post("/subscribe", auth, async (req, res) => {
+app.post("/subscribe", async (req, res) => {
   // A rota agora depende do middleware auth para autenticação
   const { endpoint, keys } = req.body;
   const userId = req.user?.id;
