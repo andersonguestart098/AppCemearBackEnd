@@ -399,7 +399,7 @@ app.post("/subscribe", async (req, res) => {
     console.log("Assinatura armazenada no banco de dados:", subscription);
     res.status(201).json({ message: "Assinatura salva com sucesso." });
   } catch (error) {
-    console.error("Erro ao salvar assinatura:", error);
+    console.error("Erro ao salvar assinaturaa:", error);
     res.status(500).json({ error: "Erro ao salvar assinatura" });
   }
 });
