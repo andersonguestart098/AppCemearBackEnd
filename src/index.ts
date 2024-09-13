@@ -425,7 +425,7 @@ app.post("/sendNotification", async (req, res) => {
   }
 });
 
-app.post("/subscribe", async (req, res) => {
+app.post("/subscribe", auth, async (req, res) => {
   const { endpoint, keys, userId } = req.body; // Recebe userId
 
   if (!userId) {
