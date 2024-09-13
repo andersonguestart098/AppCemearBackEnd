@@ -371,7 +371,9 @@ app.post("/sendNotification", async (req, res) => {
 
   try {
     // Recupera todas as assinaturas do usuário (ou para todos os usuários)
-    const subscriptions = await prisma.subscription.findMany();
+    const subscriptions = await prisma.subscription.findMany({
+      include: { user: true }, // Inclui o usuário relacionado em cada assinatura
+    });
 
     if (subscriptions.length === 0) {
       console.error("Nenhuma assinatura encontrada.");
@@ -386,6 +388,13 @@ app.post("/sendNotification", async (req, res) => {
 
     // Enviar notificação para todas as assinaturas
     for (const subscription of subscriptions) {
+      // Se o usuário estiver associado à assinatura, você pode logá-lo
+      if (subscription?.user) {
+        console.log(
+          `Enviando notificação para o usuário: ${subscription.user.usuario}`
+        );
+      }
+
       const subscriptionObject = {
         endpoint: subscription.endpoint,
         keys: {
@@ -414,9 +423,10 @@ app.post("/sendNotification", async (req, res) => {
   }
 });
 
-app.post("/subscribe", async (req, res) => {
+app.post("/subscribe", auth, async (req, res) => {
+  // A rota agora depende do middleware auth para autenticação
   const { endpoint, keys } = req.body;
-  const userId = req.user?.id; // Supondo que você tenha o ID do usuário no req.user
+  const userId = req.user?.id;
 
   if (!userId) {
     return res.status(401).json({ error: "Usuário não autenticado" });
@@ -428,12 +438,12 @@ app.post("/subscribe", async (req, res) => {
         endpoint,
         p256dh: keys.p256dh,
         auth: keys.auth,
-        userId, // Associando a assinatura ao usuário
+        userId,
         keys: JSON.stringify(keys),
       },
     });
 
-    console.log("Assinatura armazenada no banco de dados:", subscription);
+    console.log("Assinatura armazenada:", subscription);
     res.status(201).json({ message: "Assinatura salva com sucesso." });
   } catch (error) {
     console.error("Erro ao salvar assinatura:", error);
