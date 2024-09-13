@@ -72,7 +72,7 @@ app.get("/", (req, res) => {
 });
 
 app.get("/", (req, res) => {
-  res.write(`Socket.IO iniciou na porta: ${PORT}`);
+  res.write(`Socket.IO iniciou na Porta: ${PORT}`);
   res.end();
 });
 
@@ -125,7 +125,7 @@ const upload = multer({
       return cb(null, true);
     } else {
       cb(
-        new Error("Apenas imagens são permitidas (jpeg, jpg, png, gif, webp).")
+        new Error("Apenas Imagens são permitidas (jpeg, jpg, png, gif, webp).")
       );
     }
   },

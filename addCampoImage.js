@@ -13,7 +13,7 @@ async function updatePosts() {
     }
   }
 
-  console.log("Todos os posts foram atualizados com o campo imagePath.");
+  console.log("Todoss os posts foram atualizados com o campo imagePath.");
 }
 
 updatePosts()
