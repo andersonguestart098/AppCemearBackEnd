@@ -376,11 +376,13 @@ app.post("/subscribe", async (req, res) => {
   console.log("Chaves recebidas do cliente:", keys);
 
   try {
-    // Verifique se o userId é um ObjectId válido
     let userId = req.user?.id || "664644ed03a45b78015b8d"; // Pegue o userId ou use um valor padrão
+
     if (!ObjectId.isValid(userId)) {
+      console.log("Invalid user ID format:", userId);
       return res.status(400).json({ error: "Invalid user ID format" });
     }
+
     userId = new ObjectId(userId); // Certifique-se de que o ID seja um ObjectId
 
     // Armazena a assinatura
@@ -399,7 +401,7 @@ app.post("/subscribe", async (req, res) => {
     console.log("Assinatura armazenada no banco de dados:", subscription);
     res.status(201).json({ message: "Assinatura salva com sucesso." });
   } catch (error) {
-    console.error("Erro ao salvar assinaturaa:", error);
+    console.error("Erro ao salvar assinatura:", error.message);
     res.status(500).json({ error: "Erro ao salvar assinatura" });
   }
 });
