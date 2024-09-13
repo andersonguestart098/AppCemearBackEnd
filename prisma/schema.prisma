@@ -34,12 +34,13 @@ model Subscription {
   endpoint    String
   p256dh      String
   auth        String
-  userId      String   // ID do usuário associado
-  user           User     @relation(fields: [userId], references: [id]) // Relacionamento com o modelo User
+  userId      String   // Verifique se está como String
+  user        User     @relation(fields: [userId], references: [id])
   createdAt   DateTime @default(now())
   expirationTime DateTime?
   keys        String
 }
+
 
 model User {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId

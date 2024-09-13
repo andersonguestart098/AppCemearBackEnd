@@ -372,20 +372,26 @@ app.post("/sendNotification", async (req, res) => {
 app.post("/subscribe", async (req, res) => {
   const { endpoint, keys } = req.body;
 
-  // Logando as chaves recebidas para debug
   console.log("Chaves recebidas do cliente:", keys);
 
-  // Verifica o userId ou algum identificador exclusivo do usuário, se aplicável
   const userId = req.user?.id || "default_user"; // Substitua por como você identifica o usuário
 
   try {
-    // Armazena as assinaturas sem sobrescrever as anteriores
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "Usuário não encontrado" });
+    }
+
     const subscription = await prisma.subscription.create({
       data: {
         endpoint,
         p256dh: keys.p256dh,
         auth: keys.auth,
         userId, // Associando a assinatura ao usuário
+        // Remova a conexão explícita se o campo userId já faz isso
         keys: JSON.stringify(keys),
       },
     });

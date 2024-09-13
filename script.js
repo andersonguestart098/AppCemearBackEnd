@@ -1,62 +1,64 @@
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+const { MongoClient, ObjectId } = require("mongodb");
 
-async function updateSubscriptions() {
-  const users = await prisma.user.findMany(); // Encontrar todos os usuários
-  const subscriptions = await prisma.subscription.findMany(); // Encontrar todas as subscriptions
+// URL de conexão com o MongoDB
+const url =
+  "mongodb+srv://teste:teste123@serverlessinstance0.wedqfuc.mongodb.net/cemear?retryWrites=true&w=majority&appName=ServerlessInstance0"; // Substitua pela sua URL de conexão
+const dbName = "cemear"; // Substitua pelo nome correto do banco de dados
 
-  if (!users.length || !subscriptions.length) {
-    console.log("Nenhum usuário ou subscription encontrada.");
-    return;
-  }
+async function addUserFieldToSubscriptions() {
+  const client = new MongoClient(url);
 
-  for (let subscription of subscriptions) {
-    // Atribui um userId aleatório para cada assinatura (substitua com lógica adequada)
-    const randomUser = users[Math.floor(Math.random() * users.length)];
-
-    // Atualiza as subscriptions com o campo userId
-    await prisma.subscription.update({
-      where: { id: subscription.id },
-      data: { userId: randomUser.id },
-    });
-  }
-
-  console.log("Todas as subscriptions foram atualizadas com o campo userId.");
-}
-
-async function updateUsers() {
-  const users = await prisma.user.findMany();
-
-  for (let user of users) {
-    const userSubscriptions = await prisma.subscription.findMany({
-      where: { userId: user.id },
-    });
-
-    if (userSubscriptions.length > 0) {
-      // Atualiza os usuários com as subscriptions relacionadas
-      await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          subscriptions: {
-            connect: userSubscriptions.map((sub) => ({ id: sub.id })),
-          },
-        },
-      });
-    }
-  }
-
-  console.log("Os usuários foram atualizados com o campo subscriptions.");
-}
-
-async function updateModels() {
   try {
-    await updateSubscriptions();
-    await updateUsers();
-  } catch (error) {
-    console.error("Erro ao atualizar os campos:", error);
+    await client.connect();
+    console.log("Conectado ao servidor MongoDB");
+
+    const db = client.db(dbName);
+
+    const subscriptionsCollection = db.collection("Subscription");
+    const usersCollection = db.collection("User");
+
+    // Buscar todas as assinaturas que possuem userId
+    const subscriptions = await subscriptionsCollection
+      .find({ userId: { $exists: true } })
+      .toArray();
+
+    for (let subscription of subscriptions) {
+      const userId = subscription.userId;
+
+      // Buscar o usuário correspondente ao userId
+      const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
+
+      if (user) {
+        // Atualizar a assinatura com o campo 'user' como subdocumento
+        await subscriptionsCollection.updateOne(
+          { _id: subscription._id },
+          {
+            $set: {
+              user: {
+                _id: user._id, // ObjectId do usuário
+                usuario: user.usuario, // Nome do usuário ou outras informações relevantes
+                tipoUsuario: user.tipoUsuario, // Exemplo de outro campo que você pode querer incluir
+                createdAt: user.createdAt, // Você pode incluir outros campos do documento do usuário aqui
+              },
+            },
+          }
+        );
+        console.log(
+          `Assinatura ${subscription._id} atualizada com o subdocumento do usuário`
+        );
+      } else {
+        console.log(`Nenhum usuário encontrado para o userId ${userId}`);
+      }
+    }
+
+    console.log(
+      "Campo 'user' com subdocumento adicionado com sucesso às assinaturas"
+    );
+  } catch (err) {
+    console.error(err);
   } finally {
-    await prisma.$disconnect();
+    await client.close();
   }
 }
 
-updateModels();
+addUserFieldToSubscriptions();
