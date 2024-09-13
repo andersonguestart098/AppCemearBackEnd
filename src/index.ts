@@ -423,12 +423,11 @@ app.post("/sendNotification", async (req, res) => {
   }
 });
 
-app.post("/subscribe", auth, async (req, res) => {
-  const { endpoint, keys } = req.body;
-  const userId = req.user?.id;
+app.post("/subscribe", async (req, res) => {
+  const { endpoint, keys, userId } = req.body; // Recebe userId
 
   if (!userId) {
-    return res.status(401).json({ error: "Usuário não autenticado" });
+    return res.status(400).json({ error: "userId é obrigatório" });
   }
 
   try {
@@ -437,7 +436,7 @@ app.post("/subscribe", auth, async (req, res) => {
         endpoint,
         p256dh: keys.p256dh,
         auth: keys.auth,
-        userId,
+        userId, // Passa o userId aqui
         keys: JSON.stringify(keys),
       },
     });
